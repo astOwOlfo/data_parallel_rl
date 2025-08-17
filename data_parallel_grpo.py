@@ -38,7 +38,7 @@ from more_itertools import chunked, pairwise
 from itertools import chain
 import gc
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, replace, asdict
+from dataclasses import dataclass, field, replace
 from collections.abc import Iterable
 from typing import Any, ContextManager
 from jaxtyping import Float
@@ -87,7 +87,7 @@ class GRPOConfig:
     train_batch_size: int = 64
     """During the training step with AdamW, this is the batch size used to do AdamW steps. TODO: explain what happens when we do multistep"""
 
-    save_path: str = "checkpoints"
+    save_path: str = "logs_and_checkpoints"
     """At every epoch, save the current LoRA in a directory named `{save_path}/checkpoints/epoch-{i_epoch}/` and save the rollouts in a file named `{save_path}/rollouts/epoch-{i_epoch}.json`"""
 
     vllm_sleep: bool = True
@@ -316,6 +316,7 @@ async def chat_completion(
 @dataclass(frozen=True, slots=True)
 class Rollout:
     completions: list[Completion]
+    messages: list[Message]
     reward: float
     extra_metrics: dict[str, float]
     logs: Any
@@ -354,6 +355,7 @@ async def generate_single_rollout(
 
     return Rollout(
         completions=completions,
+        messages=messages,
         reward=await environment.get_reward(),
         extra_metrics=await environment.extra_metrics(),
         logs=await environment.logs(),
@@ -739,9 +741,21 @@ def update_inference_vllm_engine(
 
 
 def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
-    # TODO: support saving with pickle but say it's not recommended
+    json_rollouts: list[dict] = [
+        {
+            "messages": rollout.messages,
+            "reward": rollout.reward,
+            "extra_metrics": rollout.extra_metrics,
+            "logs": rollout.logs,
+        }
+        for rollout in rollouts
+    ]
+
     with open(os.path.join(cfg.save_path, "rollouts", f"epoch-{epoch}.json"), "w") as f:
-        json.dump([asdict(rollout) for rollout in rollouts], f)
+        json.dump(
+            json_rollouts,
+            f,
+        )
 
 
 def log_and_plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
@@ -908,7 +922,7 @@ def grpo_train(
     # TODO: this assert is probably annoying. it's probably better to instead do a thing where we create a subdirectory (e.g. one which's name is the current date) for each run
     # TODO: it is also annoying that if the path cannot be created, it will only fail after the first epoch is complete. fix this
     assert not Path(cfg.save_path).exists(), (
-        "save_checkpoints_path should point to a non existent or empty directory. If you did a previous run with the same config, delete the directory or use another one."
+        "save_path should point to a non existent or empty directory. If you did a previous run with the same config, delete the directory or use another one."
     )
     mkdir(cfg.save_path)
     mkdir(os.path.join(cfg.save_path, "checkpoints"))
