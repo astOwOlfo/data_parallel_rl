@@ -473,10 +473,6 @@ def shuffle_in_same_order(xs: list, ys: list) -> None:
     ys[:] = [ys[i] for i in indices]
 
 
-def directory_is_empty(path: str) -> bool:
-    return len(os.listdir(path)) == 0
-
-
 @torch.no_grad()
 def compute_huggingface_logprobs(
     rank: int,
@@ -911,7 +907,7 @@ def grpo_train(
 ) -> None:
     # TODO: this assert is probably annoying. it's probably better to instead do a thing where we create a subdirectory (e.g. one which's name is the current date) for each run
     # TODO: it is also annoying that if the path cannot be created, it will only fail after the first epoch is complete. fix this
-    assert not (Path(cfg.save_path).exists() and directory_is_empty(cfg.save_path)), (
+    assert not Path(cfg.save_path).exists(), (
         "save_checkpoints_path should point to a non existent or empty directory. If you did a previous run with the same config, delete the directory or use another one."
     )
     mkdir(cfg.save_path)
