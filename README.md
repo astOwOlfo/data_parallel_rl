@@ -7,7 +7,7 @@ Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
 2. Clone this repo:
 
 ```
-git clone https://<your_github_username>:<your_github_token_with_a_permission_to_clone_this_repo>@github.com/astOwOlfo/data_parallel_grpo.git
+git clone https://<your_github_username>:<your_github_token_with_permissions_to_clone_this_repo>@github.com/astOwOlfo/data_parallel_grpo.git
 ```
 
 3. Install the repo:
