@@ -140,7 +140,7 @@ class GRPOConfig:
     """Kwargs passed to `peft_model(model, LoRAConfig(r=cfg.lora_rank, **kwargs))`. Note that this should not contain a key named "r" as this key is provided by the `lora_rank` field of the config."""
 
     use_wandb: bool = False
-    """Wether to log to weights and biases."""
+    """Wether to log to weights and biases. You have to set the `WANDB_API_KEY` system variable to use this."""
 
     wandb_project: str = "data-parallel-rl"
 
