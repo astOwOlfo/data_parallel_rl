@@ -735,7 +735,7 @@ def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
         json.dump([asdict(rollout) for rollout in rollouts], f)
 
 
-def plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
+def log_and_plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
     assert all_equal(
         tuple(sorted(rollout.extra_metrics.keys())) for rollout in rollouts
     ), "Environment.extra_metrics should always return dictionaries with the same keys"
@@ -805,8 +805,7 @@ async def grpo_train_process(
             with PrintHowLongItTakes("saving rollouts"):
                 save_rollouts(rollouts=rollouts, epoch=epoch, cfg=cfg)
 
-            if cfg.use_wandb:
-                plot(rollouts=rollouts, cfg=cfg)
+            log_and_plot(rollouts=rollouts, cfg=cfg)
 
             advantages: list[float] = compute_advantages(
                 rewards=[rollout.reward for rollout in rollouts],
