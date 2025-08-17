@@ -190,9 +190,17 @@ class Environment(ABC):
         pass
 
     async def extra_metrics(self) -> dict[str, float]:
+        """
+        Metrics whose averages will be plotted on wandb.
+        The keys of the returned dicts must be the same when calling this function on any instance of the any Environment class from the same EnvironmentBuilder.
+        """
         return {}
 
     async def logs(self) -> Any:
+        """
+        Any object that will be saved to the disk with the rollouts.
+        Must be json serializable.
+        """
         return None
 
 
@@ -201,6 +209,11 @@ class EnvironmentMaker(ABC):
     def make_environments(
         self, epoch: int, n_groups: int, group_size: int
     ) -> list[list[Environment]]:
+        """
+        Must return a list of length `n_groups` each of which elements is of length `group_size`.
+        Each element of length `group_size` should contain identical copies of the same environment.
+        Will be called once at every epoch with `epoch` equal to the number of this epoch
+        """
         pass
 
 
