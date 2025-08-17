@@ -152,6 +152,28 @@ Message = dict
 
 # TODO: support tools
 class Environment(ABC):
+    """
+    An instance of this class will be created for each rollout.
+    Will only be initialized by an `EnvironmentMaker`.
+    Will only be used for one single rollout.
+    The preudocode of how the rollout will be generated with this class is the following:
+    ```
+    all_environments = environment_maker.make_environments(...)
+    environment = all_environments[i][j]
+    messages: list[Message] = await environment.initial_system_and_user_messages()
+    while True:
+        assistant_message: str = generate_chat_completion(messages)
+        next_user_messages: list[Message] | None = await environment.next_user_messages(assistant_message)
+        if next_user_message is None:
+            break
+        messages.append({"role": "assistant", "content": assistant_message})
+        messages += next_user_messages
+    reward: float = await environment.get_reward()
+    extra_metrics: dict[str, float] = await environment.extra_metrics() # will be plotted on weights and biases and saved on the disk
+    logs: Any = await environment.logs() # will be saved on the disk but not plotted on wandb
+    ```
+    """
+
     @abstractmethod
     async def initial_system_or_user_messages(self) -> list[Message]:
         pass

@@ -1,8 +1,8 @@
 # Installation
 
-Recommended docker image: `nvidia/cuda:12.8.1-base-ubuntu22.04`
+Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
 
-1. Install uv either by running `pip install uv` or following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
+1. Install uv either by running `pip install uv` globally or following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
 
 2. Clone this repo:
 
