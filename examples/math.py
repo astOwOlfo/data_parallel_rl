@@ -82,7 +82,7 @@ def main():
         environment_maker=MathEnvironmentMaker(),
         cfg=GRPOConfig(
             model="deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
-            epochs=64,
+            epochs=2,
             n_groups=4,
             group_size=4,
             use_wandb=True,

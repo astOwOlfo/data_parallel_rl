@@ -29,7 +29,7 @@ cd data_parallel_grpo
 uv run -m examples.maximize_periods
 ```
 
-Math on DeepSeek R1 Distill Qwen 14B:
+Train DeepSeek R1 Distill Qwen 14B on the `allenai/math_qa` math dataset:
 
 ```
 cd data_parallel_grpo
