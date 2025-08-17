@@ -2,7 +2,7 @@
 
 Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
 
-1. Install uv either by running `pip install uv` globally or following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
+1. Install the uv python package manager either by running `pip install uv` globally or following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/). Note that uv is already installed in the recommended docker image.
 
 2. Clone this repo:
 
