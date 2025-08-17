@@ -20,6 +20,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer, AdamW
 import wandb
+from datetime import datetime
 from time import perf_counter
 import atexit
 from pathlib import Path
@@ -392,6 +393,7 @@ async def generate_rollouts(
     )
 
     if cfg.vllm_sleep:
+        # TODO: figure out whether this actually frees all the memory allocated to vllm
         await vllm_engine.sleep(level=1)
 
     return rollouts
@@ -916,17 +918,25 @@ def train_grpo_sync_catching_exceptions(rank: int, *args) -> None:
         sys.exit(1)
 
 
+def make_save_directories(cfg: GRPOConfig) -> GRPOConfig:
+    if not not Path(cfg.save_path).exists():
+        mkdir(cfg.save_path)
+    cfg = replace(
+        cfg,
+        save_path=os.path.join(
+            cfg.save_path, datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        ),
+    )
+    assert not Path(cfg.save_path).exists()
+    mkdir(os.path.join(cfg.save_path, "checkpoints"))
+    mkdir(os.path.join(cfg.save_path, "rollouts"))
+    return cfg
+
+
 def grpo_train(
     environment_maker: EnvironmentMaker, cfg: GRPOConfig, world_size: int | None = None
 ) -> None:
-    # TODO: this assert is probably annoying. it's probably better to instead do a thing where we create a subdirectory (e.g. one which's name is the current date) for each run
-    # TODO: it is also annoying that if the path cannot be created, it will only fail after the first epoch is complete. fix this
-    assert not Path(cfg.save_path).exists(), (
-        "save_path should point to a non existent or empty directory. If you did a previous run with the same config, delete the directory or use another one."
-    )
-    mkdir(cfg.save_path)
-    mkdir(os.path.join(cfg.save_path, "checkpoints"))
-    mkdir(os.path.join(cfg.save_path, "rollouts"))
+    cfg = make_save_directories(cfg)
 
     vllm_sampling_params = deepcopy(cfg.vllm_sampling_params)
     vllm_sampling_params.logprobs = 1
