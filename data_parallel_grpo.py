@@ -34,11 +34,12 @@ import asyncio
 from copy import deepcopy
 import json
 from statistics import mean, stdev
-from more_itertools import chunked
+from more_itertools import chunked, pairwise
 from itertools import chain
 import gc
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace, asdict
+from collections.abc import Iterable
 from typing import Any, ContextManager
 from jaxtyping import Float
 
@@ -734,6 +735,28 @@ def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
         json.dump([asdict(rollout) for rollout in rollouts], f)
 
 
+def plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
+    assert all_equal(
+        tuple(sorted(rollout.extra_metrics.keys())) for rollout in rollouts
+    ), "Environment.extra_metrics should always return dictionaries with the same keys"
+    metrics: dict[str, float] = {
+        key: mean(rollout.extra_metrics[key] for rollout in rollouts)
+        for key in rollouts[0].extra_metrics.keys()
+    }
+    average_reward = mean(rollout.reward for rollout in rollouts)
+    assert "reward" not in metrics.keys(), (
+        '"reward" is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns'
+    )
+    metrics["reward"] = average_reward
+    print("METRICS:", metrics)
+    if cfg.use_wandb:
+        wandb.log(metrics)
+
+
+def all_equal(xs: Iterable) -> bool:
+    return all(x == y for x, y in pairwise(xs))
+
+
 def setup_distributed_data_parallel(rank: int, world_size: int) -> None:
     os.environ["MASTER_ADDR"] = "localhost"  # wtf is this?
     os.environ["MASTER_PORT"] = "12355"  # wtf is this?
@@ -782,10 +805,8 @@ async def grpo_train_process(
             with PrintHowLongItTakes("saving rollouts"):
                 save_rollouts(rollouts=rollouts, epoch=epoch, cfg=cfg)
 
-            average_reward: float = mean(rollout.reward for rollout in rollouts)
-            print("average reward:", average_reward)
             if cfg.use_wandb:
-                wandb.log({"reward": average_reward})
+                plot(rollouts=rollouts, cfg=cfg)
 
             advantages: list[float] = compute_advantages(
                 rewards=[rollout.reward for rollout in rollouts],
