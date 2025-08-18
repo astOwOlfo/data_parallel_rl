@@ -48,6 +48,10 @@ Familiarize yourself with the docstrings of the `Environment`, `EnvironmentBuild
 
 Note that the default hyperparameters might be bad right now, it is a work in progress to make them better. Namely, I suspect the default learning rate might be too big by an order of magnitude or two.
 
+# Known issues (IMPORTANT!)
+
+- **IMPORTANT** Often, when the script crashes or when you ctrl+C it, vLLM does not free all the GPU memory properly. If `nvidia-smi` doesn't show that all (or virtually all) the GPU memory is free after running the script, you must run `pkill python` or `killall python` before running the script again. I am working on fixing this
+
 # Using with GPT OSS 20b
 
 Please use the `gpt-oss` branch of this repo. An example of how to run RL on GPT OSS is in the `examples/gpt_oss_math.py` file of this branch. GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is more janky than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
