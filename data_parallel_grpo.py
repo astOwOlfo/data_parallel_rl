@@ -919,7 +919,7 @@ def train_grpo_sync_catching_exceptions(rank: int, *args) -> None:
 
 
 def make_save_directories(cfg: GRPOConfig) -> GRPOConfig:
-    if not not Path(cfg.save_path).exists():
+    if not Path(cfg.save_path).exists():
         mkdir(cfg.save_path)
     cfg = replace(
         cfg,
