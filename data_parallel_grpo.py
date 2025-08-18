@@ -928,6 +928,7 @@ def make_save_directories(cfg: GRPOConfig) -> GRPOConfig:
         ),
     )
     assert not Path(cfg.save_path).exists()
+    mkdir(cfg.save_path)
     mkdir(os.path.join(cfg.save_path, "checkpoints"))
     mkdir(os.path.join(cfg.save_path, "rollouts"))
     return cfg
