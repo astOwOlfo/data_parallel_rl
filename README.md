@@ -1,3 +1,7 @@
+# What is this repo?
+
+This repo contains a single-file script to run multi GPU (but not multi-node) RL on LLMs using data paralellism. Using data parallelism makes it much easier to train models, however, it requires that the whole weights of the model, as well as the activation cache, fit on a single GPU.
+
 # Installation
 
 Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
@@ -35,3 +39,13 @@ Train DeepSeek R1 Distill Qwen 14B on the `allenai/math_qa` math dataset:
 cd data_parallel_grpo
 uv run -m examples.math
 ```
+
+# Running on your own environments
+
+Familiarize yourself with the docstrings of the `Environment`, `EnvironmentBuilder`, and `GRPOConfig` in file `data_parallel_grpo.py`. Look at the examples in `examples/math.py` and `examples/maximize_periods.py`. Then, copy one of those example files, implement the environment you want in this file, and change the fields of `GRPOConfig` that you want in this file. Run it the same way as running the examples, namely, `uv run -m path.to.you.file`.
+
+Note that the default hyperparameters might be bad right now, it is a work in progress to make them better. Namely, I suspect the default learning rate might be too big by an order of magnitude or two.
+
+# Using with GPT OSS
+
+Please use the `gpt-oss` branch of this repo. An example of how to run RL on GPT OSS is in the `examples/gpt_oss_math.py` file of this branch. GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is more janky than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
