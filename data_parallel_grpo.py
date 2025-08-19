@@ -618,7 +618,7 @@ def compute_loss(
                 )
                 if mask
             ]
-        ),
+        ).cuda(rank),
         advantage=datapoint.advantage,
         n_completions=datapoint.n_completions,
         cfg=cfg,
