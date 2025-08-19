@@ -522,6 +522,7 @@ def train_with_gradient_descent(
             loss.backward()
 
         # TODO: make this divisibility constraint not required
+        # TODO: gradient clipping!
         assert cfg.train_batch_size % world_size == 0
         last_iteration = i == len(data_for_rank) - 1
         if i % (cfg.train_batch_size // world_size) or last_iteration:
