@@ -128,6 +128,9 @@ class GRPOConfig:
     optimizer_kwargs: dict[str, Any] = field(default_factory=lambda: {"lr": 1e-4})
     """Kwargs to pass to `optimizer_class(params, **kwargs)`. Note that this is the way to specify the learning rate."""
 
+    clip_gradient_max_norm: float | None = 1.0
+    """If not None, clip the gradient to this max norm before each optimizer step."""
+
     lora: bool = True
     """Whether to use LoRA. Currently, not using LoRA is not supported, so this must be True."""
 
@@ -527,6 +530,15 @@ def train_with_gradient_descent(
         last_iteration = i == len(data_for_rank) - 1
         if i % (cfg.train_batch_size // world_size) or last_iteration:
             dist.barrier()
+            if cfg.clip_gradient_max_norm is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    [
+                        param
+                        for param in model.module.parameters()
+                        if param.requries_grad
+                    ],
+                    max_norm=cfg.clip_gradient_max_norm,
+                )
             optimizer.step()
             optimizer.zero_grad()
 
