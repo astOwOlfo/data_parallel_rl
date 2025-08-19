@@ -38,9 +38,9 @@ class MathEnvironment(Environment):
         return None
 
     async def get_reward(self) -> float:
-        if "\boxed{" not in self.llm_message:
+        if "\\boxed{" not in self.llm_message:
             return 0.0
-        m = self.llm_message.split("\boxed{")[-1]  # type: ignore
+        m = self.llm_message.split("\\boxed{")[-1]  # type: ignore
         if len(m) == 0:
             return 0.0
         given_answer = m[0]
