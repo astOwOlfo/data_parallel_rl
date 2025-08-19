@@ -1,6 +1,4 @@
-# TODO: various algorithmic improvements to GRPO. namely, do compact filtering, increase the upper (but not the lower) clipping epsilon, and do length penalties in a way that doesn't break everything when we normalize advantages. what else?
-# TODO: print how much time inference and training take
-# TODO: vllm sleep
+# TODO: various algorithmic improvements to GRPO. namely, do compact filtering, increase the upper (but not the lower) clipping epsilon, support learning rate warmup, and do length penalties in a way that doesn't break everything when we normalize advantages. what else?
 
 from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams
 from vllm.v1.engine.async_llm import AsyncLLM
