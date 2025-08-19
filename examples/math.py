@@ -28,7 +28,7 @@ class MathEnvironment(Environment):
         prompt += self.problem_statement
         prompt += "\n\nPossible answers:\n"
         prompt += self.possible_answers
-        prompt += "\n\nPlease reason step by step, and put the letter of your final answer within \boxed{}, exactly as follows: \boxed{z}"
+        prompt += "\n\nPlease reason step by step, and put the letter of your final answer within \\boxed{}, exactly as follows: \\boxed{z}"
         return [{"role": "user", "content": prompt}]
 
     async def next_user_messages(
