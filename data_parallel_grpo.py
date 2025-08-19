@@ -525,7 +525,8 @@ def train_with_gradient_descent(
 
         # TODO: make this divisibility constraint not required
         assert cfg.train_batch_size % world_size == 0
-        if i % (cfg.train_batch_size // world_size):
+        last_iteration = i == len(data_for_rank) - 1
+        if i % (cfg.train_batch_size // world_size) or last_iteration:
             dist.barrier()
             optimizer.step()
             optimizer.zero_grad()
