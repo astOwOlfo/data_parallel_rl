@@ -535,7 +535,7 @@ def train_with_gradient_descent(
                     [
                         param
                         for param in model.module.parameters()
-                        if param.requries_grad
+                        if param.requires_grad
                     ],
                     max_norm=cfg.clip_gradient_max_norm,
                 )
