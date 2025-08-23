@@ -9,7 +9,7 @@ from vllm.entrypoints.chat_utils import (
     apply_hf_chat_template,
 )
 from vllm.inputs import TokensPrompt
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import get_peft_model, LoraConfig
 import torch
 from torch import Tensor
@@ -22,6 +22,7 @@ from datetime import datetime
 from time import perf_counter
 import atexit
 from pathlib import Path
+from shutil import rmtree
 from os import mkdir
 import os
 import sys
