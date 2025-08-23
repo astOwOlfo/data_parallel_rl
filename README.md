@@ -42,6 +42,15 @@ cd data_parallel_rl
 uv run -m examples.math
 ```
 
+Train GPT OSS 20b on the `allenai/math_qa` math dataset:
+
+```
+cd data_parallel_rl
+uv run -m examples.gpt_oss_math
+```
+
+GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is jankier than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
+
 # Running on your own environments
 
 Familiarize yourself with the docstrings of the `Environment`, `EnvironmentBuilder`, and `GRPOConfig` in file `data_parallel_grpo.py`. Look at the examples in `examples/math.py` and `examples/maximize_periods.py`. Then, copy one of those example files, implement the environment you want in this file, and change the fields of `GRPOConfig` that you want in this file. Run it the same way as running the examples, namely, `uv run -m path.to.you.file`.
@@ -56,19 +65,3 @@ Note that the default hyperparameters might be bad right now, it is a work in pr
 ```
 sudo ln -s /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so
 ```
-
-# Using with GPT OSS 20b
-
-Add the following line to the `[tool.uv.sources]` section of `pyproject.toml` and run `uv sync -vv`:
-```
-vllm = { git = "https://github.com/vllm-project/vllm.git", rev = "16bff14" }
-```
-This will make the project depend on the nightly version of vLLM which supports GPT OSS in bfloat16.
-
-Run `examples/gpt_oss_math.py` to train GPT OSS 20b on a math dataset:
-```
-cd data_parallel_rl
-uv run -m examples.gpt_oss_math
-```
-
-GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is jankier than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
