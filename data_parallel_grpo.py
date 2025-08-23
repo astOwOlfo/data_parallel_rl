@@ -724,7 +724,7 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
     vllm_engine = AsyncLLMEngine.from_engine_args(
         AsyncEngineArgs(
             model=cfg.model,
-            enable_lora=True,
+            enable_lora=not cfg.lora or cfg.restart_vllm_with_merged_lora,
             max_lora_rank=cfg.lora_rank,
             **kwargs,
         )
