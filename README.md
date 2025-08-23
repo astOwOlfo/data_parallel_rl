@@ -13,7 +13,7 @@ Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
 2. Clone this repo:
 
 ```
-git clone https://<your_github_username>:<your_github_token_with_permissions_to_clone_this_repo>@github.com/astOwOlfo/data_parallel_grpo.git
+git clone https://<your_github_username>:<your_github_token_with_permissions_to_clone_this_repo>@github.com/astOwOlfo/data_parallel_rl.git
 ```
 
 3. Install the repo:
@@ -31,14 +31,14 @@ Note: if you have issues with flash attention, try:
 Toy multistep environment:
 
 ```
-cd data_parallel_grpo
+cd data_parallel_rl
 uv run -m examples.maximize_periods
 ```
 
 Train DeepSeek R1 Distill Qwen 14B on the `allenai/math_qa` math dataset:
 
 ```
-cd data_parallel_grpo
+cd data_parallel_rl
 uv run -m examples.math
 ```
 
@@ -54,4 +54,16 @@ Note that the default hyperparameters might be bad right now, it is a work in pr
 
 # Using with GPT OSS 20b
 
-Please use the `gpt-oss` branch of this repo. An example of how to run RL on GPT OSS is in the `examples/gpt_oss_math.py` file of this branch. GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is more janky than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
+Add the following line to the `[tool.uv.sources]` section of `pyproject.toml` and run `uv sync -vv`:
+```
+vllm = { git = "https://github.com/vllm-project/vllm.git", rev = "16bff14" }
+```
+This will make the project depend on the nightly version of vLLM which supports GPT OSS in bfloat16.
+
+Run `examples/gpt_oss_math.py` to train GPT OSS 20b on a math dataset:
+```
+cd data_parallel_rl
+uv run -m examples.gpt_oss_math
+```
+
+GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is jankier than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.

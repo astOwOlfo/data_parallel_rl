@@ -142,6 +142,9 @@ class GRPOConfig:
     )
     """Kwargs passed to `peft_model(model, LoRAConfig(r=cfg.lora_rank, **kwargs))`. Note that this should not contain a key named "r" as this key is provided by the `lora_rank` field of the config."""
 
+    restart_vllm_with_merged_lora: bool = False
+    """This is a moderately cursed bug fix to make the script work with gpt oss. vLLM does unfortunately not suppport LoRA for gpt oss. So what we do is every time we want to move the lora adapter from the trained HuggingFace transformer to the vLLM inference engine, we destroy the vLLM engine, merge the LoRA adapter, save the full weights of the model with the merged LoRA adapter, and create a new vLLM engine from those weights. This takes non negligible time because we have to restart the vLLM engine."""
+
     use_wandb: bool = False
     """Wether to log to weights and biases. You have to set the `WANDB_API_KEY` system variable to use this."""
 
@@ -737,21 +740,41 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
 
 
 def update_inference_vllm_engine(
+    world_size: int,
     inference_vllm_engine: AsyncLLM | AsyncLLMEngine,
     training_model: DistributedDataParallel,
     epoch: int,
     cfg: GRPOConfig,
 ) -> tuple[AsyncLLM | AsyncLLMEngine, LoRARequest]:
-    # TODO: full parameter fine-tuning
-    # TODO: for gpt-oss, do a cursed thing where we merge the lora adapters at every step and reinitialize the vllm engine as if we were doing full fine-tuning.
-    # TODO: take if maybe gpt-oss-bf16 actually supports lora so we don't need to do the cursed thing (btw last time i checked gpt-oss vllm inference was *faster* in bfloat16 than in mxfp4 (it is natively in mxfp4))
+    if not cfg.restart_vllm_with_merged_lora:
+        path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
+        training_model.module.save_pretrained(path)
+        new_vllm_lora_request = LoRARequest(
+            lora_name=f"epoch_{epoch}", lora_int_id=epoch + 1, lora_local_path=path
+        )
+        return inference_vllm_engine, new_vllm_lora_request
 
-    path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
-    training_model.module.save_pretrained(path)
-    new_vllm_lora_request = LoRARequest(
-        lora_name=f"epoch_{epoch}", lora_int_id=epoch + 1, lora_local_path=path
-    )
-    return inference_vllm_engine, new_vllm_lora_request
+    else:
+        inference_vllm_engine.shutdown()
+        lora_adapter_path = os.path.abspath(
+            os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
+        )
+        full_weight_path = os.path.abspath(os.path.join(cfg.save_path, "full_weights"))
+        training_model.module.save_pretrained(lora_adapter_path)
+        merged_model = deepcopy(training_model.module).cpu()
+        merged_model = merged_model.merge_and_unload()
+        merged_model.save_pretrained(full_weight_path)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model)
+        tokenizer.save_pretrained(full_weight_path)
+        del merged_model, tokenizer
+        gc.collect()
+        torch.cuda.empty_cache()
+        new_inference_vllm_engine = make_vllm_engine(
+            world_size=world_size, cfg=replace(cfg, model=full_weight_path)
+        )
+        rmtree(full_weight_path)
+        lora_request = None
+        return new_inference_vllm_engine, lora_request
 
 
 def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
@@ -905,6 +928,7 @@ async def grpo_train_process(
                 "copying lora adapter from the training huggingface transformer to the inference vllm engine"
             ):
                 inference_vllm_engine, vllm_lora_request = update_inference_vllm_engine(
+                    world_size=world_size,
                     inference_vllm_engine=inference_vllm_engine,  # type: ignore
                     training_model=training_model,
                     epoch=epoch,
