@@ -87,7 +87,7 @@ def main():
             group_size=4,
             use_wandb=False,
             compile_huggingface_model=True,
-            vllm_kwargs={"gpu_memory_utilization": 0.5, "max_model_len": 65536},
+            vllm_kwargs={"gpu_memory_utilization": 0.4, "max_model_len": 65536},
             vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
             restart_vllm_with_merged_lora=True,
         ),
