@@ -47,7 +47,7 @@ def main():
             epochs=64,
             n_groups=16,
             group_size=4,
-            use_wandb=True,
+            use_wandb=False,
             compile_huggingface_model=True,
         ),
     )
