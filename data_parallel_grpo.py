@@ -717,8 +717,6 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
 
     if "tensor_parallel_size" not in kwargs:
         kwargs["tensor_parallel_size"] = world_size
-    if "disable_log_requests" not in kwargs:
-        kwargs["disable_log_requests"] = True
     if cfg.vllm_sleep and "enable_sleep_mode" not in kwargs:
         kwargs["enable_sleep_mode"] = True
 
