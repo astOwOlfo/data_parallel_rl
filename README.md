@@ -52,6 +52,11 @@ Note that the default hyperparameters might be bad right now, it is a work in pr
 
 - **IMPORTANT** Often, when the script crashes or when you ctrl+C it, vLLM does not free all the GPU memory properly. If `nvidia-smi` doesn't show that all (or virtually all) the GPU memory is free after running the script, you must run `pkill python` or `killall python` before running the script again. I am working on fixing this
 
+- If you get C compilation errors during vLLM startup with a message similar to `cannot find -lcuda: No such file or directory`, try doing:
+```
+sudo ln -s /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so
+```
+
 # Using with GPT OSS 20b
 
 Add the following line to the `[tool.uv.sources]` section of `pyproject.toml` and run `uv sync -vv`:
