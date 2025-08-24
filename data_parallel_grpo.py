@@ -61,8 +61,11 @@ class GRPOConfig:
     train_on_each_step_separately: bool = True
     """For now, this should always be true because there is a bug when this is False. TODO: Fix the bug and explain this parameter."""
 
-    clip_epsilon: float = 0.2
-    """Epsilon for clipping probability ratios. See a description of how GRPO works [e.g. here](https://arxiv.org/abs/2501.12948) if you don't understand this."""
+    clip_epsilon_low: float = 0.2
+    """Lower epsilon for clipping probability ratios. See a description of how GRPO works [e.g. here](https://arxiv.org/abs/2501.12948) if you don't understand what a clip epsilon is. Don't forget to also change the value of clip_epsilon_high if you change this."""
+
+    clip_epsilon_high: float = 0.2
+    """Higher epsilon for clipping probability ratios. In standard GRPO, it is equal to clip_epsilon_low. See a description of how GRPO works [e.g. here](https://arxiv.org/abs/2501.12948) if you don't understand what a clip epsilon is. [This paper](https://arxiv.org/abs/2503.14476) argues that it is better for clip_epsilon_high to be higher than clip_epsilon_low. They use clip_epsilon_low = 0.2 and clip_epsilon_high = 0.28."""
 
     normalize_advantages: bool = True
     """Whether to divide the advantages in each group by its standard deviation. Standard GRPO does this. [This paper](https://arxiv.org/abs/2503.20783) argues it's better not to do this."""
@@ -662,8 +665,8 @@ def grpo_loss(
     ).exp()
     clipped_probability_ratios: Float[Tensor, " position"] = torch.clip(
         probability_ratios,
-        min=1 - cfg.clip_epsilon,
-        max=1 + cfg.clip_epsilon,
+        min=1 - cfg.clip_epsilon_low,
+        max=1 + cfg.clip_epsilon_high,
     )
 
     losses: Float[Tensor, " position"] = -torch.minimum(
