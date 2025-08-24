@@ -82,7 +82,7 @@ class GRPOConfig:
     """The `epsilon` in the formula `advantage = (reward - mean(group_rewards)) / (std(group_revards) + epsilon)`. This epsilon exists to avoid divisions by zero."""
 
     group_sequence_policy_optimization: bool = False
-    """Instead of computing probability ratios and clipping them for each token, compute them for the whole sequence of generated tokens (that is, multiply all the probability ratios). [This paper by Qwen](https://arxiv.org/abs/2507.18071) argues that this is better. This technique was used to train Qwen3."""
+    """Instead of computing probability ratios and clipping them for each token, compute them for the whole sequence of generated tokens (that is, multiply all the probability ratios). [This paper by Qwen](https://arxiv.org/abs/2507.18071) argues that this is better. This technique was used to train Qwen3. Note that clip_epsilon_low and clip_epsilon_high should be much smaller when using group sequence policy optimization. In the linked paper, they take clip_epsilon_low = 3e-4 and clip_epsilon_high = 4e-4."""
 
     truncated_importance_sampling: bool = False
     """vLLM (used for generating rollouts) and HuggingFace transformers (used for training) have implementation differences that make it so that the logits they generate are not exactly the same. [This blogpost](https://fengyao.notion.site/off-policy-rl) argues that this hinders RL training and proposes to mitigate this problem using truncated importance sampling. Enabling this flag enables this mitigation."""
