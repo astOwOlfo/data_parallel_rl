@@ -59,7 +59,7 @@ Note that the default hyperparameters might be bad right now, it is a work in pr
 
 # Known issues (IMPORTANT!)
 
-- **IMPORTANT** Often, when the script crashes or when you ctrl+C it, vLLM does not free all the GPU memory properly. If `nvidia-smi` doesn't show that all (or virtually all) the GPU memory is free after running the script, you must run `pkill python` or `killall python` before running the script again. I am working on fixing this
+- **IMPORTANT** Often, when the script crashes or when you ctrl+C it, vLLM does not free all the GPU memory properly. If `nvidia-smi` doesn't show that all (or virtually all) the GPU memory is free after running the script, you must run `pkill python` or `killall python` before running the script again. If this doesn't free GPU memory, find the pids of the processes that seem to be launched by this script using `top` or `htop` and `kill` them. I am working on fixing this.
 
 - If you get C compilation errors during vLLM startup with a message similar to `cannot find -lcuda: No such file or directory`, try doing:
 ```
