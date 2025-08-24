@@ -42,7 +42,7 @@ cd data_parallel_rl
 uv run -m examples.math
 ```
 
-Train GPT OSS 20b on the `allenai/math_qa` math dataset:
+Train GPT OSS 20b on the `allenai/math_qa` math dataset. You will need to use H200s and not H100s for this:
 
 ```
 cd data_parallel_rl
