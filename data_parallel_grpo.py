@@ -28,6 +28,7 @@ import os
 import sys
 from uuid import uuid4
 from tqdm import tqdm, trange
+from tqdm.asyncio import tqdm as asyncio_tqdm
 from traceback import print_exc
 import random
 import asyncio
@@ -399,7 +400,7 @@ async def generate_rollouts(
     assert all(len(group) == cfg.group_size for group in grouped_environments)
     environments: list[Environment] = list(chain.from_iterable(grouped_environments))
 
-    rollouts = await asyncio.gather(
+    rollouts = await asyncio_tqdm.gather(
         *[
             generate_single_rollout(
                 environment=environment,
@@ -408,7 +409,8 @@ async def generate_rollouts(
                 cfg=cfg,
             )
             for environment in environments
-        ]
+        ],
+        desc="generating rollouts"
     )
 
     environment_maker.cleanup(grouped_environments)
