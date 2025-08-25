@@ -768,8 +768,13 @@ def grpo_loss(
 
     metrics = LossMetrics(
         loss=loss.item(),
-        fraction_clipped=torch.isclose(probability_ratios, clipped_probability_ratios)
-        .logical_not()
+        # fraction_clipped=torch.isclose(probability_ratios, clipped_probability_ratios)
+        # .logical_not()
+        # .float()
+        # .mean()
+        # .item(),
+        fraction_clipped=(probability_ratios < 1 - cfg.clip_epsilon_low)
+        .logical_or(probability_ratios > 1 + cfg.clip_epsilon_high)
         .float()
         .mean()
         .item(),
