@@ -14,6 +14,7 @@ dependencies = [
     "peft==0.17.0",
     "wandb==0.21.1",
     "datasets==3.6.0",
+    "flashinfer-python==0.2.14.post1", # this line is important because installing flashinfer speeds up vllm significantly
 ]
 
 [tool.uv.sources]
