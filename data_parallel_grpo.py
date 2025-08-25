@@ -927,7 +927,7 @@ def get_metrics(
         assert full_key not in metrics.keys(), (
             f"'{full_key}' is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns"
         )
-        metrics[full_key] = mean(asdict(m)[key] for m in loss_metrics)
+        metrics[full_key] = mean(asdict(m)[key] for m in rollout_metrics)
 
     return metrics
 
