@@ -92,6 +92,31 @@ def main():
         ),
     )
 
+    """
+        grpo_train(
+        environment_maker=MathEnvironmentMaker(),
+        cfg=GRPOConfig(
+            model="deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+            epochs=4096,
+            n_groups=64,
+            group_size=8,
+            use_wandb=True,
+            clip_epsilon_low=3e-4,
+            clip_epsilon_high=4e-4,
+            normalize_advantages=False,
+            unbias_advantages=True,
+            group_sequence_policy_optimization=True,
+            truncated_importance_sampling=True,
+            compile_huggingface_model=True,
+            vllm_kwargs={"gpu_memory_utilization": 0.8, "max_model_len": 16384},
+            optimizer_kwargs={"lr": 1e-5},
+            vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
+            lora_rank=32,
+            lora_kwargs={"lora_alpha": 64, "target_modules": "all-linear"},
+        ),
+    )
+    """
+
 
 if __name__ == "__main__":
     main()

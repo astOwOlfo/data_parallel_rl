@@ -768,7 +768,8 @@ def grpo_loss(
 
     metrics = LossMetrics(
         loss=loss.item(),
-        fraction_clipped=(probability_ratios != clipped_probability_ratios)
+        fraction_clipped=torch.isclose(probability_ratios, clipped_probability_ratios)
+        .logical_not()
         .float()
         .mean()
         .item(),
