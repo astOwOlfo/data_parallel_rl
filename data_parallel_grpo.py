@@ -448,7 +448,7 @@ async def generate_rollouts(
         desc="generating rollouts",
     )
 
-    environment_maker.cleanup(grouped_environments)
+    await environment_maker.cleanup(grouped_environments)
 
     if cfg.vllm_sleep:
         # TODO: figure out whether this actually frees all the memory allocated to vllm
