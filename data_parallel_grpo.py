@@ -869,8 +869,9 @@ async def grpo_train_process(
     main_process = rank == 0
 
     if main_process:
-        inference_vllm_engine = make_vllm_engine(world_size=world_size, cfg=cfg)
-        vllm_lora_request = None
+        with PrintHowLongItTakes("initializing vllm inference engine"):
+            inference_vllm_engine = make_vllm_engine(world_size=world_size, cfg=cfg)
+            vllm_lora_request = None
 
     dist.barrier()
 
