@@ -160,6 +160,9 @@ class GRPOConfig:
 
     wandb_run_name: str | None = None
 
+    print_example_rollout: bool = True
+    """Print one rollout every epoch."""
+
 
 Message = dict
 
@@ -341,6 +344,17 @@ class Rollout:
     reward: float
     extra_metrics: dict[str, float]
     logs: Any
+
+
+def print_rollout(rollout: Rollout) -> None:
+    print("---=== ROLLOUT ===---")
+    for message in rollout.messages:
+        print(f"=== {message['role'].upper()} MESSAGE ===")
+        if set(message.keys()) == {"role", "content"}:
+            print(message["content"])
+        else:
+            print(json.dumps(message, indent=4))
+    print("---=== END ROLLOUT ===---")
 
 
 async def generate_single_rollout(
@@ -895,6 +909,9 @@ async def grpo_train_process(
                     epoch=epoch,
                     cfg=cfg,
                 )
+
+            if cfg.print_example_rollout:
+                print_rollout(rollouts[0])
 
             with PrintHowLongItTakes("saving rollouts"):
                 save_rollouts(rollouts=rollouts, epoch=epoch, cfg=cfg)
