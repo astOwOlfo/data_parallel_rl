@@ -188,7 +188,7 @@ class Environment(ABC):
     reward: float = await environment.get_reward()
     extra_metrics: dict[str, float] = await environment.extra_metrics() # will be plotted on weights and biases and saved on the disk
     logs: Any = await environment.logs() # will be saved on the disk but not plotted on wandb
-    environment_maker.cleanup()
+    await environment_maker.cleanup()
     ```
     """
 
@@ -233,7 +233,7 @@ class EnvironmentMaker(ABC):
         """
         pass
 
-    def cleanup(self, environments: list[list[Environment]]) -> None:
+    async def cleanup(self, environments: list[list[Environment]]) -> None:
         """
         Will be called once after each call to make_environments after all rollouts with the returned environments have been generated.
         Will be called on the environments that make_environments returned.
