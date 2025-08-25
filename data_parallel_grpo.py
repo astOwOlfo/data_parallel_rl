@@ -184,6 +184,7 @@ class Environment(ABC):
     reward: float = await environment.get_reward()
     extra_metrics: dict[str, float] = await environment.extra_metrics() # will be plotted on weights and biases and saved on the disk
     logs: Any = await environment.logs() # will be saved on the disk but not plotted on wandb
+    environment_maker.cleanup()
     ```
     """
 
@@ -225,6 +226,13 @@ class EnvironmentMaker(ABC):
         Must return a list of length `n_groups` each of which elements is of length `group_size`.
         Each element of length `group_size` should contain identical copies of the same environment.
         Will be called once at every epoch with `epoch` equal to the number of this epoch
+        """
+        pass
+
+    def cleanup(self, environments: list[list[Environment]]) -> None:
+        """
+        Will be called once after each call to make_environments after all rollouts with the returned environments have been generated.
+        Will be called on the environments that make_environments returned.
         """
         pass
 
@@ -402,6 +410,8 @@ async def generate_rollouts(
             for environment in environments
         ]
     )
+
+    environment_maker.cleanup(grouped_environments)
 
     if cfg.vllm_sleep:
         # TODO: figure out whether this actually frees all the memory allocated to vllm
