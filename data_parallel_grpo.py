@@ -410,7 +410,7 @@ async def generate_rollouts(
             )
             for environment in environments
         ],
-        desc="generating rollouts"
+        desc="generating rollouts",
     )
 
     environment_maker.cleanup(grouped_environments)
