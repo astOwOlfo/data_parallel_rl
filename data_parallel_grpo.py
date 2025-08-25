@@ -656,9 +656,16 @@ def grpo_loss(
     cfg: GRPOConfig,
 ) -> Float[Tensor, ""]:
     if cfg.group_sequence_policy_optimization:
-        logprobs = logprobs.sum(-1, keepdim=True)
-        old_huggingface_logprobs = old_huggingface_logprobs.sum(-1, keepdim=True)
-        old_vllm_logprobs = old_vllm_logprobs.sum(-1, keepdim=True)
+        if cfg.unbias_completion_length:
+            divide_by = n_completions * cfg.vllm_sampling_params.max_tokens
+        else:
+            divide_by = logprobs.numel()
+
+        logprobs = logprobs.sum(-1, keepdim=True) / divide_by
+        old_huggingface_logprobs = (
+            old_huggingface_logprobs.sum(-1, keepdim=True) / divide_by
+        )
+        old_vllm_logprobs = old_vllm_logprobs.sum(-1, keepdim=True) / divide_by
 
     probability_ratios: Float[Tensor, " position"] = (
         logprobs - old_huggingface_logprobs
@@ -685,6 +692,10 @@ def grpo_loss(
                 ),
             )
         losses = vllm_huggingface_probability_ratios * losses
+
+    if cfg.group_sequence_policy_optimization:
+        assert losses.numel() == 1
+        return losses.reshape(())
 
     if cfg.unbias_completion_length:
         assert cfg.vllm_sampling_params.max_tokens is not None
