@@ -1057,6 +1057,8 @@ async def grpo_train_process(
                 cfg=cfg,
             )
 
+            dist.barrier()
+
             loss_metrics = concatenate_from_all_processes(
                 loss_metrics, world_size=world_size
             )
