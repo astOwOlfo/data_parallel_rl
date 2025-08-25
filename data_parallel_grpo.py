@@ -39,7 +39,7 @@ from more_itertools import chunked, pairwise
 from itertools import chain
 import gc
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, replace, asdict
 from collections.abc import Iterable
 from typing import Any, ContextManager
 from jaxtyping import Float
@@ -357,6 +357,27 @@ def print_rollout(rollout: Rollout) -> None:
     print("---=== END ROLLOUT ===---")
 
 
+@dataclass(frozen=True, slots=True)
+class RolloutMetrics:
+    n_completions: int
+    n_messages: int
+    n_input_tokens_per_completion: float
+    n_generated_tokens: float
+
+
+def get_rollout_metrics(rollout: Rollout) -> RolloutMetrics:
+    return RolloutMetrics(
+        n_completions=len(rollout.completions),
+        n_messages=len(rollout.messages),
+        n_input_tokens_per_completion=mean(
+            len(completion.prompt_token_ids) for completion in rollout.completions
+        ),
+        n_generated_tokens=mean(
+            len(completion.completion_token_ids) for completion in rollout.completions
+        ),
+    )
+
+
 async def generate_single_rollout(
     environment: Environment,
     vllm_engine: AsyncLLMEngine | AsyncLLM,
@@ -533,6 +554,16 @@ def compute_huggingface_logprobs(
             datapoint.huggingface_logprobs = [None] + logits.tolist()  # type: ignore
 
 
+@dataclass(frozen=True, slots=True)
+class LossMetrics:
+    loss: float
+    fraction_clipped: float
+    max_probability_ratio: float
+    mean_probability_ratio: float
+    max_clipped_probability_ratio: float
+    mean_clipped_probability_ratio: float
+
+
 def train_with_gradient_descent(
     rank: int,
     world_size: int,
@@ -540,8 +571,10 @@ def train_with_gradient_descent(
     optimizer: Optimizer,
     data_for_rank: list[list[TrainingDatapoint]],
     cfg: GRPOConfig,
-) -> None:
+) -> list[LossMetrics]:
     main_process = rank == 0
+
+    all_loss_metrics: list[LossMetrics] = []
 
     # TODO: batching
     for i, datapoints_for_rollout in enumerate(
@@ -552,13 +585,14 @@ def train_with_gradient_descent(
             # note: torch will complain if there have been zero backward passes on one gpu
 
             # TODO: check if this works if the number of train datapoints is different on different gpus
-            loss = compute_loss(
+            loss, loss_metrics = compute_loss(
                 rank=rank,
                 model=model,
                 datapoint=datapoint,
                 cfg=cfg,
             )
             loss.backward()
+            all_loss_metrics.append(loss_metrics)
 
         # TODO: make this divisibility constraint not required
         # TODO: gradient clipping!
@@ -577,6 +611,8 @@ def train_with_gradient_descent(
                 )
             optimizer.step()
             optimizer.zero_grad()
+
+    return all_loss_metrics
 
 
 def compute_advantages(rewards: list[float], cfg: GRPOConfig) -> list[float]:
@@ -637,7 +673,7 @@ def compute_loss(
     model: DistributedDataParallel,
     datapoint: TrainingDatapoint,
     cfg: GRPOConfig,
-) -> Float[Tensor, ""]:
+) -> tuple[Float[Tensor, ""], LossMetrics]:
     logprobs: Float[Tensor, " position"] = compute_logprobs(
         rank=rank, model=model, datapoint=datapoint
     )
@@ -680,7 +716,7 @@ def grpo_loss(
     advantage: float,
     n_completions: int,
     cfg: GRPOConfig,
-) -> Float[Tensor, ""]:
+) -> tuple[Float[Tensor, ""], LossMetrics]:
     if cfg.group_sequence_policy_optimization:
         if cfg.unbias_completion_length:
             divide_by = n_completions * cfg.vllm_sampling_params.max_tokens
@@ -719,16 +755,30 @@ def grpo_loss(
             )
         losses = vllm_huggingface_probability_ratios * losses
 
+    loss: Float[Tensor, ""]
     if cfg.group_sequence_policy_optimization:
         assert losses.numel() == 1
-        return losses.reshape(())
-
-    if cfg.unbias_completion_length:
+        loss = losses.reshape(())
+    elif cfg.unbias_completion_length:
         assert cfg.vllm_sampling_params.max_tokens is not None
         # TODO: check if i should multiply by n_completions here
-        return losses.sum() / (n_completions * cfg.vllm_sampling_params.max_tokens)
+        loss = losses.sum() / (n_completions * cfg.vllm_sampling_params.max_tokens)
     else:
-        return losses.mean()
+        loss = losses.mean()
+
+    metrics = LossMetrics(
+        loss=loss.item(),
+        fraction_clipped=(probability_ratios != clipped_probability_ratios)
+        .float()
+        .mean()
+        .item(),
+        max_probability_ratio=probability_ratios.max().item(),
+        mean_probability_ratio=probability_ratios.mean().item(),
+        max_clipped_probability_ratio=clipped_probability_ratios.max().item(),
+        mean_clipped_probability_ratio=clipped_probability_ratios.mean().item(),
+    )
+
+    return loss, metrics
 
 
 def make_training_model(rank, cfg: GRPOConfig) -> DistributedDataParallel:
@@ -842,7 +892,9 @@ def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
         )
 
 
-def log_and_plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
+def get_metrics(
+    rollouts: list[Rollout], loss_metrics: list[LossMetrics]
+) -> dict[str, float]:
     assert all_equal(
         tuple(sorted(rollout.extra_metrics.keys())) for rollout in rollouts
     ), "Environment.extra_metrics should always return dictionaries with the same keys"
@@ -854,14 +906,54 @@ def log_and_plot(rollouts: list[Rollout], cfg: GRPOConfig) -> None:
     assert "reward" not in metrics.keys(), (
         '"reward" is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns'
     )
+
     metrics["reward"] = average_reward
+
+    assert all_equal(tuple(sorted(asdict(m))) for m in loss_metrics)
+    for key in asdict(loss_metrics[0]).keys():
+        full_key = f"loss/{key}"
+        assert full_key not in metrics.keys(), (
+            f"'{full_key}' is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns"
+        )
+        aggregate_fn = max if key.startswith("max") else mean
+        metrics[full_key] = aggregate_fn(asdict(m)[key] for m in loss_metrics)
+
+    rollout_metrics: list[RolloutMetrics] = [
+        get_rollout_metrics(rollout) for rollout in rollouts
+    ]
+    assert all_equal(tuple(sorted(asdict(m))) for m in rollout_metrics)
+    for key in asdict(rollout_metrics[0]).keys():
+        full_key = f"rollout/{key}"
+        assert full_key not in metrics.keys(), (
+            f"'{full_key}' is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns"
+        )
+        metrics[full_key] = mean(asdict(m)[key] for m in loss_metrics)
+
+    return metrics
+
+
+def log_and_plot(
+    rollouts: list[Rollout], loss_metrics: list[LossMetrics], cfg: GRPOConfig
+) -> None:
+    metrics: dict[str, float] = get_metrics(
+        rollouts=rollouts, loss_metrics=loss_metrics
+    )
+
     print("METRICS:", metrics)
+
     if cfg.use_wandb:
         wandb.log(metrics)
 
 
 def all_equal(xs: Iterable) -> bool:
     return all(x == y for x, y in pairwise(xs))
+
+
+def concatenate_from_all_processes(xs: list[Any], world_size: int) -> list[Any]:
+    xs_from_all_processes: list[list | None] = [None] * world_size
+    dist.all_gather_object(xs_from_all_processes, xs)
+    assert all(xs is not None for xs in xs_from_all_processes)
+    return list(chain.from_iterable(xs_from_all_processes))  # type: ignore
 
 
 def setup_distributed_data_parallel(rank: int, world_size: int) -> None:
@@ -916,8 +1008,6 @@ async def grpo_train_process(
             with PrintHowLongItTakes("saving rollouts"):
                 save_rollouts(rollouts=rollouts, epoch=epoch, cfg=cfg)
 
-            log_and_plot(rollouts=rollouts, cfg=cfg)
-
             advantages: list[float] = compute_advantages(
                 rewards=[rollout.reward for rollout in rollouts],
                 cfg=cfg,
@@ -958,13 +1048,17 @@ async def grpo_train_process(
         dist.barrier()
 
         with PrintHowLongItTakes("training", disable=not main_process):
-            train_with_gradient_descent(
+            loss_metrics: list[LossMetrics] = train_with_gradient_descent(
                 rank=rank,
                 world_size=world_size,
                 model=training_model,
                 optimizer=optimizer,
                 data_for_rank=training_data_for_rank,
                 cfg=cfg,
+            )
+
+            loss_metrics = concatenate_from_all_processes(
+                loss_metrics, world_size=world_size
             )
 
         dist.barrier()
@@ -975,6 +1069,8 @@ async def grpo_train_process(
         dist.barrier()
 
         if main_process:
+            log_and_plot(rollouts=rollouts, loss_metrics=loss_metrics, cfg=cfg)
+
             with PrintHowLongItTakes(
                 "copying lora adapter from the training huggingface transformer to the inference vllm engine"
             ):
