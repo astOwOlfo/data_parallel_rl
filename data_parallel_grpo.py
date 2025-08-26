@@ -563,6 +563,7 @@ class LossMetrics:
     max_clipped_probability_ratio: float
     mean_clipped_probability_ratio: float
     mean_abs_vllm_huggingface_log_probability_ratio: float
+    max_abs_vllm_huggingface_log_probability_ratio: float
 
 
 def train_with_gradient_descent(
@@ -789,6 +790,12 @@ def grpo_loss(
         )
         .abs()
         .mean()
+        .item(),
+        max_abs_vllm_huggingface_log_probability_ratio=(
+            old_huggingface_logprobs - old_vllm_logprobs
+        )
+        .abs()
+        .max()
         .item(),
     )
 
