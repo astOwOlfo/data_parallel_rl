@@ -720,6 +720,7 @@ def grpo_loss(
 ) -> tuple[Float[Tensor, ""], LossMetrics]:
     if cfg.group_sequence_policy_optimization:
         if cfg.unbias_completion_length:
+            assert cfg.vllm_sampling_params.max_tokens is not None
             divide_by = n_completions * cfg.vllm_sampling_params.max_tokens
         else:
             divide_by = logprobs.numel()
@@ -783,7 +784,12 @@ def grpo_loss(
         mean_probability_ratio=probability_ratios.mean().item(),
         max_clipped_probability_ratio=clipped_probability_ratios.max().item(),
         mean_clipped_probability_ratio=clipped_probability_ratios.mean().item(),
-        mean_abs_vllm_huggingface_log_probability_ratio=(old_huggingface_logprobs - old_vllm_logprobs).abs().mean().item(),
+        mean_abs_vllm_huggingface_log_probability_ratio=(
+            old_huggingface_logprobs - old_vllm_logprobs
+        )
+        .abs()
+        .mean()
+        .item(),
     )
 
     return loss, metrics
@@ -850,7 +856,7 @@ def update_inference_vllm_engine(
     training_model: DistributedDataParallel,
     epoch: int,
     cfg: GRPOConfig,
-) -> tuple[AsyncLLM | AsyncLLMEngine, LoRARequest]:
+) -> tuple[AsyncLLM | AsyncLLMEngine, LoRARequest | None]:
     if not cfg.restart_vllm_with_merged_lora:
         path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
         training_model.module.save_pretrained(path)
@@ -860,7 +866,7 @@ def update_inference_vllm_engine(
         return inference_vllm_engine, new_vllm_lora_request
 
     else:
-        inference_vllm_engine.shutdown()
+        inference_vllm_engine.shutdown()  # type: ignore
         lora_adapter_path = os.path.abspath(
             os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
         )
