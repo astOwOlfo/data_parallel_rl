@@ -362,7 +362,7 @@ class RolloutMetrics:
     n_completions: int
     n_messages: int
     n_input_tokens_per_completion: float
-    n_generated_tokens: float
+    n_generated_tokens_per_completion: float
 
 
 def get_rollout_metrics(rollout: Rollout) -> RolloutMetrics:
@@ -372,7 +372,7 @@ def get_rollout_metrics(rollout: Rollout) -> RolloutMetrics:
         n_input_tokens_per_completion=mean(
             len(completion.prompt_token_ids) for completion in rollout.completions
         ),
-        n_generated_tokens=mean(
+        n_generated_tokens_per_completion=mean(
             len(completion.completion_token_ids) for completion in rollout.completions
         ),
     )
