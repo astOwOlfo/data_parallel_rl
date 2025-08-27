@@ -745,6 +745,14 @@ def grpo_loss(
         probability_ratios * advantage, clipped_probability_ratios * advantage
     )
 
+    fraction_clipped: float = (
+        torch.isclose(losses, probability_ratios * advantage)
+        .logical_not()
+        .float()
+        .mean()
+        .item()
+    )
+
     if cfg.truncated_importance_sampling:
         vllm_huggingface_probability_ratios: Float[Tensor, " position"] = (
             old_huggingface_logprobs - old_vllm_logprobs
@@ -771,16 +779,7 @@ def grpo_loss(
 
     metrics = LossMetrics(
         loss=loss.item(),
-        # fraction_clipped=torch.isclose(probability_ratios, clipped_probability_ratios)
-        # .logical_not()
-        # .float()
-        # .mean()
-        # .item(),
-        fraction_clipped=(probability_ratios < 1 - cfg.clip_epsilon_low)
-        .logical_or(probability_ratios > 1 + cfg.clip_epsilon_high)
-        .float()
-        .mean()
-        .item(),
+        fraction_clipped=fraction_clipped,
         max_probability_ratio=probability_ratios.max().item(),
         mean_probability_ratio=probability_ratios.mean().item(),
         max_clipped_probability_ratio=clipped_probability_ratios.max().item(),
