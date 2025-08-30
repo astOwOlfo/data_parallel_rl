@@ -1003,9 +1003,9 @@ async def grpo_train_process(
 
     dist.barrier()
 
-    with PrintHowLongItTakes("initializing HuggingFace transformer for training")
-    training_model = make_training_model(rank=rank, cfg=cfg)
-    optimizer = make_optimizer(model=training_model, cfg=cfg)
+    with PrintHowLongItTakes("initializing HuggingFace transformer for training"):
+        training_model = make_training_model(rank=rank, cfg=cfg)
+        optimizer = make_optimizer(model=training_model, cfg=cfg)
 
     dist.barrier()
 
