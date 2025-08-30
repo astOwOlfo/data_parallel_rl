@@ -548,10 +548,10 @@ def compute_huggingface_logprobs(
         data_for_rank, desc="computing huggingface logits", disable=not main_process
     ):
         for datapoint in datapoints_for_rollout:
-            logits: Float[Tensor, " position"] = compute_logprobs(
+            logprobs: Float[Tensor, " position"] = compute_logprobs(
                 rank=rank, model=model, datapoint=datapoint
             )
-            datapoint.huggingface_logprobs = [None] + logits.tolist()  # type: ignore
+            datapoint.huggingface_logprobs = [None] + logprobs.tolist()  # type: ignore
 
 
 @dataclass(frozen=True, slots=True)
