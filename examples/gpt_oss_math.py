@@ -83,7 +83,7 @@ def main():
         cfg=GRPOConfig(
             model="unsloth/gpt-oss-20b-bf16",
             epochs=32,
-            n_groups=64,
+            n_groups=256,
             group_size=8,
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
@@ -92,14 +92,15 @@ def main():
             unbias_completion_length=False,
             group_sequence_policy_optimization=True,
             truncated_importance_sampling=True,
-            use_wandb=False,
+            use_wandb=True,
             vllm_sleep=True,
             compile_huggingface_model=True,
             vllm_kwargs={"gpu_memory_utilization": 0.5, "max_model_len": 12288},
             vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
             restart_vllm_with_merged_lora=True,
             optimizer_kwargs={"lr": 5e-5},
-            lora_kwargs={"lora_rank": 128, "lora_alpha": 32},
+            lora_rank=128,
+            lora_kwargs={"lora_alpha": 32, "target_modules": "all-linear"},
         ),
     )
 
