@@ -605,7 +605,7 @@ def train_with_gradient_descent(
         # TODO: gradient clipping!
         assert cfg.train_batch_size % world_size == 0
         last_iteration = i == len(data_for_rank) - 1
-        if i % (cfg.train_batch_size // world_size) or last_iteration:
+        if i % (cfg.train_batch_size // world_size) == 0 or last_iteration:
             dist.barrier()
             if cfg.clip_gradient_max_norm is not None:
                 torch.nn.utils.clip_grad_norm_(
