@@ -1021,7 +1021,7 @@ async def grpo_train_process(
     if main_process and cfg.use_wandb:
         wandb.init(project=cfg.wandb_project, name=cfg.wandb_run_name)
 
-    for epoch in trange(cfg.epochs, desc="grpo trainig", disable=not main_process):
+    for epoch in trange(cfg.epochs, desc="grpo training", disable=not main_process):
         if main_process:
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
                 rollouts: list[Rollout] = await generate_rollouts(
