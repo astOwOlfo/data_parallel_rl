@@ -265,6 +265,7 @@ class Completion:
     prompt_token_ids: list[int]
     completion_token_ids: list[int]
     completion_logprobs: list[float]
+    cumulative_completion_logprob: float
 
 
 async def chat_completion(
@@ -334,6 +335,7 @@ async def chat_completion(
                 strict=True,
             )
         ],
+        cumulative_completion_logprob=final_output.outputs[0].cumulative_completion_logprob
     )
 
 
@@ -462,6 +464,7 @@ class TrainingDatapoint:
     token_ids: list[int]
     train_mask: list[bool]
     vllm_logprobs: list[float | None]
+    cumulative_vllm_completion_logprob: float
     huggingface_logprobs: list[float | None] | None
     advantage: float
     n_completions: int
@@ -485,6 +488,7 @@ def training_datapoints(
                 + [True] * len(completion.completion_token_ids),
                 vllm_logprobs=[None] * len(completion.prompt_token_ids)
                 + completion.completion_logprobs,
+                cumulative_vllm_completion_logprob=completion.cumulative_completion_logprob,
                 huggingface_logprobs=None,
                 advantage=advantage,
                 n_completions=1,
@@ -512,6 +516,7 @@ def training_datapoints(
             token_ids=token_ids,
             train_mask=train_mask,
             vllm_logprobs=logprobs,
+            # cumulative_completion_logprob= TODO
             huggingface_logprobs=None,
             advantage=advantage,
             n_completions=len(rollout.completions),
@@ -705,6 +710,7 @@ def compute_loss(
                 if mask
             ]
         ).cuda(rank),
+        old_vllm_cumulative_completion_logprob=datapoint.cumulative_completion_logprob,
         advantage=datapoint.advantage,
         n_completions=datapoint.n_completions,
         cfg=cfg,
@@ -715,6 +721,7 @@ def grpo_loss(
     logprobs: Float[Tensor, " position"],
     old_huggingface_logprobs: Float[Tensor, " position"],
     old_vllm_logprobs: Float[Tensor, " position"],
+    old_vllm_cumulative_completion_logprob: Float[Tensor, ""],
     advantage: float,
     n_completions: int,
     cfg: GRPOConfig,
@@ -730,7 +737,7 @@ def grpo_loss(
         old_huggingface_logprobs = (
             old_huggingface_logprobs.sum(-1, keepdim=True) / divide_by
         )
-        old_vllm_logprobs = old_vllm_logprobs.sum(-1, keepdim=True) / divide_by
+        old_vllm_logprobs = old_vllm_cumulative_completion_logprob.unsqueeze(-1) / divide_by
 
     probability_ratios: Float[Tensor, " position"] = (
         logprobs - old_huggingface_logprobs
