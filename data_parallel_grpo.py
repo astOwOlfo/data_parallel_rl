@@ -710,7 +710,9 @@ def compute_loss(
                 if mask
             ]
         ).cuda(rank),
-        old_vllm_cumulative_completion_logprob=datapoint.cumulative_vllm_completion_logprob,
+        old_vllm_cumulative_completion_logprob=torch.tensor(
+            datapoint.cumulative_vllm_completion_logprob
+        ).cuda(rank),
         advantage=datapoint.advantage,
         n_completions=datapoint.n_completions,
         cfg=cfg,
