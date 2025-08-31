@@ -335,7 +335,7 @@ async def chat_completion(
                 strict=True,
             )
         ],
-        cumulative_completion_logprob=final_output.outputs[0].cumulative_completion_logprob
+        cumulative_completion_logprob=final_output.outputs[0].cumulative_logprob
     )
 
 
@@ -710,7 +710,7 @@ def compute_loss(
                 if mask
             ]
         ).cuda(rank),
-        old_vllm_cumulative_completion_logprob=datapoint.cumulative_completion_logprob,
+        old_vllm_cumulative_completion_logprob=datapoint.cumulative_vllm_completion_logprob,
         advantage=datapoint.advantage,
         n_completions=datapoint.n_completions,
         cfg=cfg,
