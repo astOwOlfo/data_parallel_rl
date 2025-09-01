@@ -841,12 +841,11 @@ def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer
 
 
 def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEngine:
-    kwargs = cfg.vllm_kwargs
-
-    if "tensor_parallel_size" not in kwargs:
-        kwargs["tensor_parallel_size"] = world_size
-    if cfg.vllm_sleep and "enable_sleep_mode" not in kwargs:
-        kwargs["enable_sleep_mode"] = True
+    # reminder of what `dict | dict` does: this line sets the fields given in the dict literal only if they are missing from cfg.vllm_kwargs
+    kwargs = cfg.vllm_kwargs | {
+        "tensor_parallel_size": world_size,
+        "enable_sleep_mode": cfg.vllm_sleep,
+    }
 
     vllm_engine = AsyncLLMEngine.from_engine_args(
         AsyncEngineArgs(
