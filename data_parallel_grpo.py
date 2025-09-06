@@ -689,7 +689,7 @@ def compute_loss(
 
     # question: indexing by the mask before passing the tokens to the loss the cleanest way to do masking?
     return grpo_loss(
-        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)],
+        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(torch.float32),
         old_huggingface_logprobs=torch.tensor(
             [
                 logprob
@@ -699,7 +699,8 @@ def compute_loss(
                     strict=True,
                 )
                 if mask
-            ]
+            ],
+            dtype=torch.float32,
         ).cuda(rank),
         old_vllm_logprobs=torch.tensor(
             [
@@ -708,10 +709,11 @@ def compute_loss(
                     datapoint.vllm_logprobs, datapoint.train_mask, strict=True
                 )
                 if mask
-            ]
+            ],
+            dtype=torch.float32,
         ).cuda(rank),
         old_vllm_cumulative_completion_logprob=torch.tensor(
-            datapoint.cumulative_vllm_completion_logprob
+            datapoint.cumulative_vllm_completion_logprob, dtype=torch.float32
         ).cuda(rank),
         advantage=datapoint.advantage,
         n_completions=datapoint.n_completions,
