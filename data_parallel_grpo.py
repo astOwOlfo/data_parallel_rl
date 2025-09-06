@@ -305,7 +305,7 @@ async def chat_completion(
         conversation=conversation,
         model_config=model_config,
         chat_template=None,
-        add_generation_prompt=False,
+        add_generation_prompt=True,
         continue_final_message=False,
         tools=None,
     )
