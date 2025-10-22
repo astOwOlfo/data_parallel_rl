@@ -879,7 +879,10 @@ def update_inference_vllm_engine(
         return inference_vllm_engine, new_vllm_lora_request
 
     else:
-        inference_vllm_engine.shutdown()  # type: ignore
+        # inference_vllm_engine.shutdown()  # type: ignore
+        dell inference_vllm_engine
+        gc.collect()
+        torch.cuda.empty_cache()
         lora_adapter_path = os.path.abspath(
             os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
         )
