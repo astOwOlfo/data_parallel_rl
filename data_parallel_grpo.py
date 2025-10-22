@@ -352,10 +352,22 @@ async def generate_single_rollout(
     )
 
 
-async def generate_rollouts(
+def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
+    queue = mp.Queue()
+    process = mp.Process(target=generate_rollouts, args=args, kwargs=kwargs)
+    process.start()
+    result = queue.get
+    process.join()
+    return result
+
+
+def generate_rollouts(queue, *args, **kwargs) -> None:
+    result = asyncio.run(generate_rollouts(*args, **kwargs))
+    queue.put(result)
+
+
+async def generate_rollouts_async(
     environment_maker: EnvironmentMaker,
-    vllm_engine: LLM,
-    lora_request: LoRARequest | None,
     epoch: int,
     cfg: GRPOConfig,
 ) -> list[Rollout]:
@@ -863,47 +875,21 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> LLM:
     return vllm_engine
 
 
-def update_inference_vllm_engine(
-    world_size: int,
-    inference_vllm_engine: LLM,
-    training_model: DistributedDataParallel,
-    epoch: int,
-    cfg: GRPOConfig,
-) -> tuple[LLM, LoRARequest | None]:
-    if not cfg.restart_vllm_with_merged_lora:
-        path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
-        training_model.module.save_pretrained(path)
-        new_vllm_lora_request = LoRARequest(
-            lora_name=f"epoch_{epoch}", lora_int_id=epoch + 1, lora_local_path=path
-        )
-        return inference_vllm_engine, new_vllm_lora_request
-
-    else:
-        # inference_vllm_engine.shutdown()  # type: ignore
-        del inference_vllm_engine
-        gc.collect()
-        torch.cuda.empty_cache()
-        import subprocess
-        subprocess.run(["nvidia-smi"])
-        lora_adapter_path = os.path.abspath(
-            os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
-        )
-        full_weight_path = os.path.abspath(os.path.join(cfg.save_path, "full_weights"))
-        training_model.module.save_pretrained(lora_adapter_path)
-        merged_model = deepcopy(training_model.module).cpu()
-        merged_model = merged_model.merge_and_unload()
-        merged_model.save_pretrained(full_weight_path)
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model)
-        tokenizer.save_pretrained(full_weight_path)
-        del merged_model, tokenizer
-        gc.collect()
-        torch.cuda.empty_cache()
-        new_inference_vllm_engine = make_vllm_engine(
-            world_size=world_size, cfg=replace(cfg, model=full_weight_path)
-        )
-        rmtree(full_weight_path)
-        lora_request = None
-        return new_inference_vllm_engine, lora_request
+def save_full_weight_model(training_model: DDP, cfg: GRPOConfig) -> str:
+    lora_adapter_path = os.path.abspath(
+        os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
+    )
+    full_weight_path = os.path.abspath(os.path.join(cfg.save_path, "full_weights"))
+    training_model.module.save_pretrained(lora_adapter_path)
+    merged_model = deepcopy(training_model.module).cpu()
+    merged_model = merged_model.merge_and_unload()
+    merged_model.save_pretrained(full_weight_path)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model)
+    tokenizer.save_pretrained(full_weight_path)
+    del merged_model, tokenizer
+    gc.collect()
+    torch.cuda.empty_cache()
+    return full_weird_path
 
 
 def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
@@ -1009,11 +995,6 @@ async def grpo_train_process(
 
     main_process = rank == 0
 
-    if main_process:
-        with PrintHowLongItTakes("initializing vllm inference engine"):
-            inference_vllm_engine = make_vllm_engine(world_size=world_size, cfg=cfg)
-            vllm_lora_request = None
-
     dist.barrier()
 
     with PrintHowLongItTakes("initializing HuggingFace transformer for training"):
@@ -1027,14 +1008,15 @@ async def grpo_train_process(
 
     for epoch in trange(cfg.epochs, desc="grpo training", disable=not main_process):
         if main_process:
+            with PrintHowLongItTakes("Saving model to disk."):
+                model_path = save_full_weigh_model(training_model, cfg=cfg)
+            
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
-                rollouts: list[Rollout] = await generate_rollouts(
-                    environment_maker=environment_maker,
-                    vllm_engine=inference_vllm_engine,  # type: ignore
-                    lora_request=vllm_lora_request,  # type: ignore
-                    epoch=epoch,
-                    cfg=cfg,
+                rollouts: list[Rollout] = generate_rollouts_subprocess(
+                    environment_maker=environment_maker, epoch=epoch, cfg=replace(cfg, model_name=model_path)
                 )
+
+            rmtree(model_path)
 
             if cfg.print_example_rollout:
                 print_rollout(rollouts[0])
@@ -1106,17 +1088,6 @@ async def grpo_train_process(
 
         if main_process:
             log_and_plot(rollouts=rollouts, loss_metrics=loss_metrics, cfg=cfg)
-
-            with PrintHowLongItTakes(
-                "copying lora adapter from the training huggingface transformer to the inference vllm engine"
-            ):
-                inference_vllm_engine, vllm_lora_request = update_inference_vllm_engine(
-                    world_size=world_size,
-                    inference_vllm_engine=inference_vllm_engine,  # type: ignore
-                    training_model=training_model,
-                    epoch=epoch,
-                    cfg=cfg,
-                )
 
         dist.barrier()
 
