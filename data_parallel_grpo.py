@@ -368,6 +368,7 @@ def generate_rollouts(queue, *args, **kwargs) -> None:
 
 
 async def generate_rollouts_async(
+    world_size: int,
     environment_maker: EnvironmentMaker,
     epoch: int,
     cfg: GRPOConfig,
@@ -1010,7 +1011,10 @@ async def grpo_train_process(
             
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
                 rollouts: list[Rollout] = generate_rollouts_subprocess(
-                    environment_maker=environment_maker, epoch=epoch, cfg=replace(cfg, model=model_path)
+                    world_size=world_size,
+                    environment_maker=environment_maker,
+                    epoch=epoch,
+                    cfg=replace(cfg, model=model_path),
                 )
 
             rmtree(model_path)
