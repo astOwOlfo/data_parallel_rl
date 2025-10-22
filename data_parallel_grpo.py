@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import multiprocessing
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer, AdamW
 import wandb
@@ -353,8 +354,8 @@ async def generate_single_rollout(
 
 
 def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
-    queue = mp.Queue()
-    process = mp.Process(target=generate_rollouts, args=args, kwargs=kwargs)
+    queue = multiprocessing.Queue()
+    process = multiprocessing.Process(target=generate_rollouts, args=args, kwargs=kwargs)
     process.start()
     result = queue.get
     process.join()
