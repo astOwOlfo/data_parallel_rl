@@ -880,7 +880,7 @@ def update_inference_vllm_engine(
 
     else:
         # inference_vllm_engine.shutdown()  # type: ignore
-        dell inference_vllm_engine
+        del inference_vllm_engine
         gc.collect()
         torch.cuda.empty_cache()
         lora_adapter_path = os.path.abspath(
