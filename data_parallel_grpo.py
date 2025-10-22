@@ -357,7 +357,7 @@ def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
     queue = multiprocessing.Queue()
     process = multiprocessing.Process(target=generate_rollouts, args=args, kwargs=kwargs)
     process.start()
-    result = queue.get
+    result = queue.get()
     process.join()
     return result
 
