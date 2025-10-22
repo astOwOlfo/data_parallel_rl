@@ -1014,7 +1014,7 @@ async def grpo_train_process(
             
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
                 rollouts: list[Rollout] = generate_rollouts_subprocess(
-                    environment_maker=environment_maker, epoch=epoch, cfg=replace(cfg, model_name=model_path)
+                    environment_maker=environment_maker, epoch=epoch, cfg=replace(cfg, model=model_path)
                 )
 
             rmtree(model_path)
