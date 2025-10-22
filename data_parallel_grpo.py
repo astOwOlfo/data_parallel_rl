@@ -438,7 +438,8 @@ async def generate_rollouts(
                             output.outputs[0].token_ids,
                             strict=True,
                         )
-                    ]
+                    ],
+                    cumulative_completion_logprob=output.outputs[0].cumulative_logprob,
                 )
             ],
             messages=[prompt + [{"role": "assistant", "content": output.outputs[0].text}]],
