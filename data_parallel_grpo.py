@@ -1,7 +1,6 @@
 # TODO: various algorithmic improvements to GRPO. namely, do compact filtering, increase the upper (but not the lower) clipping epsilon, support learning rate warmup, and do length penalties in a way that doesn't break everything when we normalize advantages. what else?
 
-from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams
-from vllm.v1.engine.async_llm import AsyncLLM
+from vllm import LLM, SamplingParams
 from vllm.lora.request import LoRARequest
 from vllm.entrypoints.chat_utils import (
     resolve_chat_template_content_format,
@@ -268,76 +267,6 @@ class Completion:
     cumulative_completion_logprob: float
 
 
-async def chat_completion(
-    messages: list[Message],
-    vllm_engine: AsyncLLMEngine | AsyncLLM,
-    lora_request: LoRARequest | None,
-    sampling_params: SamplingParams,
-) -> Completion:
-    # Note: I copied this code from the chat method of the LLM class in the vLLM library without fully understanding it
-
-    assert sampling_params.logprobs == 1
-
-    model_config = await vllm_engine.get_model_config()
-    tokenizer = await vllm_engine.get_tokenizer()
-
-    resolved_content_format = resolve_chat_template_content_format(
-        chat_template=None,
-        tools=None,
-        given_format="auto",
-        tokenizer=tokenizer,
-        model_config=model_config,
-    )
-
-    conversation, multimodal_data = parse_chat_messages(
-        messages,  # type: ignore
-        model_config,
-        tokenizer,
-        content_format=resolved_content_format,
-    )
-
-    assert multimodal_data is None, (
-        "If this assert is triggered when you are not using a multimodal model: this is really weird and should not happen. If this assert is happening when you are using a multimodal model: sorry, I didn't test this code on multimodal models. If this assert is triggered, you have to figure out how to add support for multimodal models. All you have to do might be just removing this assert. But removing this assert might make things fail silently. I don't know, I didn't take the time to understand how multimodal models work with vLLM."
-    )
-
-    prompt_str = apply_hf_chat_template(
-        tokenizer=tokenizer,  # type: ignore
-        conversation=conversation,
-        model_config=model_config,
-        chat_template=None,
-        add_generation_prompt=True,
-        continue_final_message=False,
-        tools=None,
-    )
-
-    prompt_token_ids = tokenizer.encode(prompt_str, add_special_tokens=False)
-    prompt = TokensPrompt(prompt_token_ids=prompt_token_ids)
-
-    request_id = str(uuid4())
-    result_generator = vllm_engine.generate(
-        prompt, sampling_params, request_id, lora_request=lora_request
-    )
-
-    final_output = None
-    async for request_output in result_generator:
-        final_output = request_output
-    assert final_output is not None
-
-    return Completion(
-        completion_text=final_output.outputs[0].text,
-        prompt_token_ids=final_output.prompt_token_ids,  # type: ignore
-        completion_token_ids=final_output.outputs[0].token_ids,  # type: ignore
-        completion_logprobs=[
-            logprobs[token].logprob
-            for logprobs, token in zip(
-                final_output.outputs[0].logprobs,  # type: ignore
-                final_output.outputs[0].token_ids,
-                strict=True,
-            )
-        ],
-        cumulative_completion_logprob=final_output.outputs[0].cumulative_logprob
-    )
-
 
 @dataclass(frozen=True, slots=True)
 class Rollout:
@@ -382,7 +311,7 @@ def get_rollout_metrics(rollout: Rollout) -> RolloutMetrics:
 
 async def generate_single_rollout(
     environment: Environment,
-    vllm_engine: AsyncLLMEngine | AsyncLLM,
+    vllm_engine: LLM,
     lora_request: LoRARequest | None,
     cfg: GRPOConfig,
 ) -> Rollout:
@@ -422,13 +351,13 @@ async def generate_single_rollout(
 
 async def generate_rollouts(
     environment_maker: EnvironmentMaker,
-    vllm_engine: AsyncLLMEngine | AsyncLLM,
+    vllm_engine: LLM,
     lora_request: LoRARequest | None,
     epoch: int,
     cfg: GRPOConfig,
 ) -> list[Rollout]:
-    if cfg.vllm_sleep and await vllm_engine.is_sleeping():
-        await vllm_engine.wake_up()
+    if cfg.vllm_sleep and vllm_engine.is_sleeping():
+        vllm_engine.wake_up()
 
     grouped_environments: list[list[Environment]] = environment_maker.make_environments(
         epoch=epoch, n_groups=cfg.n_groups, group_size=cfg.group_size
@@ -437,24 +366,27 @@ async def generate_rollouts(
     assert all(len(group) == cfg.group_size for group in grouped_environments)
     environments: list[Environment] = list(chain.from_iterable(grouped_environments))
 
-    rollouts = await asyncio_tqdm.gather(
+    prompts: list[list[Message]] = asyncio.gather(
         *[
-            generate_single_rollout(
-                environment=environment,
-                vllm_engine=vllm_engine,
-                lora_request=lora_request,
-                cfg=cfg,
-            )
+            environment.initial_system_or_user_messages()
             for environment in environments
-        ],
-        desc="generating rollouts",
+        ]
     )
 
+    outputs: list[RequestOutput] = vllm_engine.chat(
+        messages=prompts, sampling_params=cfg.sampling_params, lora_request=lora_request, use_tqdm=True
+    )
+
+    for output in outputs:
+        print(output)
+
+    exit()
+    
     await environment_maker.cleanup(grouped_environments)
 
     if cfg.vllm_sleep:
         # TODO: figure out whether this actually frees all the memory allocated to vllm
-        await vllm_engine.sleep(level=1)
+        vllm_engine.sleep(level=1)
 
     return rollouts
 
@@ -842,7 +774,7 @@ def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer
     )
 
 
-def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEngine:
+def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> LLM:
     kwargs = cfg.vllm_kwargs
 
     if "tensor_parallel_size" not in kwargs:
@@ -850,13 +782,11 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
     if cfg.vllm_sleep and "enable_sleep_mode" not in kwargs:
         kwargs["enable_sleep_mode"] = True
 
-    vllm_engine = AsyncLLMEngine.from_engine_args(
-        AsyncEngineArgs(
-            model=cfg.model,
-            enable_lora=cfg.lora and not cfg.restart_vllm_with_merged_lora,
-            max_lora_rank=cfg.lora_rank,
-            **kwargs,
-        )
+    vllm_engine = LLM(
+        model=cfg.model,
+        enable_lora=cfg.lora and not cfg.restart_vllm_with_merged_lora,
+        max_lora_rank=cfg.lora_rank,
+        **kwargs,
     )
 
     @atexit.register
@@ -869,11 +799,11 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
 
 def update_inference_vllm_engine(
     world_size: int,
-    inference_vllm_engine: AsyncLLM | AsyncLLMEngine,
+    inference_vllm_engine: LLM,
     training_model: DistributedDataParallel,
     epoch: int,
     cfg: GRPOConfig,
-) -> tuple[AsyncLLM | AsyncLLMEngine, LoRARequest | None]:
+) -> tuple[LLM, LoRARequest | None]:
     if not cfg.restart_vllm_with_merged_lora:
         path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
         training_model.module.save_pretrained(path)
