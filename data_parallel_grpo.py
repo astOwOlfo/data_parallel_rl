@@ -374,7 +374,7 @@ async def generate_rollouts(
     )
 
     outputs: list[RequestOutput] = vllm_engine.chat(
-        messages=prompts, sampling_params=cfg.sampling_params, lora_request=lora_request, use_tqdm=True
+        messages=prompts, sampling_params=cfg.vllm_sampling_params, lora_request=lora_request, use_tqdm=True
     )
 
     for output in outputs:
