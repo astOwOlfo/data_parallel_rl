@@ -876,7 +876,7 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> LLM:
     return vllm_engine
 
 
-def save_full_weight_model(training_model: DDP, cfg: GRPOConfig) -> str:
+def save_full_weight_model(training_model, cfg: GRPOConfig) -> str:
     lora_adapter_path = os.path.abspath(
         os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
     )
