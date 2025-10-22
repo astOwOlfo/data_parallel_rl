@@ -1,3 +1,5 @@
+# This is a test branch, do not use it!
+
 # What is this repo?
 
 This repo contains a single-file script to run multi GPU (but not multi-node) RL on LLMs using data paralellism. Using data parallelism makes it much easier to train models, however, it requires that the whole weights of the model, as well as the activation cache, fit on a single GPU.
