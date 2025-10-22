@@ -282,6 +282,7 @@ class Rollout:
 def print_rollout(rollout: Rollout) -> None:
     print("---=== ROLLOUT ===---")
     for message in rollout.messages:
+        print(f"{message=}")
         print(f"=== {message['role'].upper()} MESSAGE ===")
         if set(message.keys()) == {"role", "content"}:
             print(message["content"])
@@ -414,9 +415,6 @@ async def generate_rollouts(
             environment.logs() for environment in environments
         ]
     )
-
-    for output in outputs:
-        print(output)
 
     await environment_maker.cleanup(grouped_environments)
 
@@ -938,14 +936,15 @@ def get_metrics(
 
     metrics["reward"] = average_reward
 
-    assert all_equal(tuple(sorted(asdict(m))) for m in loss_metrics)
-    for key in asdict(loss_metrics[0]).keys():
-        full_key = f"loss/{key}"
-        assert full_key not in metrics.keys(), (
-            f"'{full_key}' is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns"
-        )
-        aggregate_fn = max if key.startswith("max") else mean
-        metrics[full_key] = aggregate_fn(asdict(m)[key] for m in loss_metrics)
+    if len(loss_metrics) > 0:
+        assert all_equal(tuple(sorted(asdict(m))) for m in loss_metrics)
+        for key in asdict(loss_metrics[0]).keys():
+            full_key = f"loss/{key}"
+            assert full_key not in metrics.keys(), (
+                f"'{full_key}' is reserved so it cannot be a key of the dictionaries that Environment.extra_metrics returns"
+            )
+            aggregate_fn = max if key.startswith("max") else mean
+            metrics[full_key] = aggregate_fn(asdict(m)[key] for m in loss_metrics)
 
     rollout_metrics: list[RolloutMetrics] = [
         get_rollout_metrics(rollout) for rollout in rollouts
