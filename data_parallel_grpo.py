@@ -890,7 +890,7 @@ def save_full_weight_model(training_model, epoch: int, cfg: GRPOConfig) -> str:
     del merged_model, tokenizer
     gc.collect()
     torch.cuda.empty_cache()
-    return full_weird_path
+    return full_weight_path
 
 
 def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
