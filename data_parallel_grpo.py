@@ -355,7 +355,7 @@ async def generate_single_rollout(
 
 def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
     queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=generate_rollouts, args=args, kwargs=kwargs)
+    process = multiprocessing.Process(target=generate_rollouts, args=(queue,) + args, kwargs=kwargs)
     process.start()
     result = queue.get()
     process.join()
@@ -363,7 +363,7 @@ def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
 
 
 def generate_rollouts(queue, *args, **kwargs) -> None:
-    result = asyncio.run(generate_rollouts(*args, **kwargs))
+    result = asyncio.run(generate_rollouts_async(*args, **kwargs))
     queue.put(result)
 
 
