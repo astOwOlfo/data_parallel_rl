@@ -584,7 +584,7 @@ def train_with_gradient_descent(
             advantages_on_all_processes: list[float] = concatenate_from_all_processes(
                 datapoint.advantage, world_size=world_size
             )
-            if all(advantage == 0.0 for advantage in advantages_on_all_processes)
+            if all(advantage == 0.0 for advantage in advantages_on_all_processes):
                 continue
             
             # TODO: don't do this computation if the advantage is zero
