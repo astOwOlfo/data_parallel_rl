@@ -380,7 +380,7 @@ async def generate_rollouts(
         sampling_params=cfg.vllm_sampling_params,
         lora_request=lora_request,
         use_tqdm=True,
-        extra_body={"chat_template_kwargs": {"reasoning_effort": cfg.gpt_oss_reasoning_effort}}
+        chat_template_kwargs={"reasoning_effort": cfg.gpt_oss_reasoning_effort}
         if cfg.gpt_oss_reasoning_effort is not None
         else None
     )
