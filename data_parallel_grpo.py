@@ -366,7 +366,7 @@ async def generate_rollouts(
     assert all(len(group) == cfg.group_size for group in grouped_environments)
     environments: list[Environment] = list(chain.from_iterable(grouped_environments))
 
-    prompts: list[list[Message]] = asyncio.gather(
+    prompts: list[list[Message]] = await asyncio.gather(
         *[
             environment.initial_system_or_user_messages()
             for environment in environments
