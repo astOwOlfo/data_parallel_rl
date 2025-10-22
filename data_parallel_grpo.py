@@ -40,7 +40,7 @@ import gc
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, replace, asdict
 from collections.abc import Iterable
-from typing import Any, ContextManager
+from typing import Any, ContextManager, Literal
 from jaxtyping import Float
 
 
