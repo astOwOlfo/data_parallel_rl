@@ -90,7 +90,7 @@ class GRPOConfig:
     truncated_importance_sampling_threshold: float = 8.0
     """Only matters when `truncated_importance_sampling` is True. It is the C constant in the blogpost. See the blogpost for an explanation."""
 
-    gpt_oss_reasonig_effort: Literal["low", "medium", "high"] | None = None
+    gpt_oss_reasoning_effort: Literal["low", "medium", "high"] | None = None
 
     train_batch_size: int = 64
     """During the training step with AdamW, this is the batch size used to do AdamW steps. TODO: explain what happens when we do multistep"""
