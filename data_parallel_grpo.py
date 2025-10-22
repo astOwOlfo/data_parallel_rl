@@ -386,7 +386,7 @@ async def generate_rollouts_async(
         ]
     )
 
-    with PrintHowLongItTakens("Initializing vllm engine for inference"):
+    with PrintHowLongItTakes("Initializing vllm engine for inference"):
         vllm_engine: LLM = make_vllm_engine(wold_size=world_size, cfg=cfg)
 
     outputs: list[RequestOutput] = vllm_engine.chat(
