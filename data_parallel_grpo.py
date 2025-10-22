@@ -417,6 +417,12 @@ async def generate_rollouts(
     for output in outputs:
         print(output)
 
+    await environment_maker.cleanup(grouped_environments)
+
+    if cfg.vllm_sleep:
+        # TODO: figure out whether this actually frees all the memory allocated to vllm
+        vllm_engine.sleep(level=1)
+
     return [
         Rollout(
             completions=[
@@ -443,16 +449,6 @@ async def generate_rollouts(
             prompts, outputs, rewards, extra_metrics, logs, strict=True
         )
     ]
-
-    exit()
-    
-    await environment_maker.cleanup(grouped_environments)
-
-    if cfg.vllm_sleep:
-        # TODO: figure out whether this actually frees all the memory allocated to vllm
-        vllm_engine.sleep(level=1)
-
-    return rollouts
 
 
 @dataclass(slots=True)
