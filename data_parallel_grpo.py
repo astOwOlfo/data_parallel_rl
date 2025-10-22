@@ -581,7 +581,7 @@ def train_with_gradient_descent(
     ):
         for datapoint in datapoints_for_rollout:
             advantages_on_all_processes: list[float] = concatenate_from_all_processes(
-                datapoint.advantage, world_size=world_size
+                [datapoint.advantage], world_size=world_size
             )
             if all(advantage == 0.0 for advantage in advantages_on_all_processes):
                 continue
