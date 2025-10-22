@@ -90,6 +90,8 @@ class GRPOConfig:
     truncated_importance_sampling_threshold: float = 8.0
     """Only matters when `truncated_importance_sampling` is True. It is the C constant in the blogpost. See the blogpost for an explanation."""
 
+    gpt_oss_reasonig_effort: Literal["low", "medium", "high"] | None = None
+
     train_batch_size: int = 64
     """During the training step with AdamW, this is the batch size used to do AdamW steps. TODO: explain what happens when we do multistep"""
 
@@ -374,11 +376,73 @@ async def generate_rollouts(
     )
 
     outputs: list[RequestOutput] = vllm_engine.chat(
-        messages=prompts, sampling_params=cfg.vllm_sampling_params, lora_request=lora_request, use_tqdm=True
+        messages=prompts,
+        sampling_params=cfg.vllm_sampling_params,
+        lora_request=lora_request,
+        use_tqdm=True,
+        extra_body={"chat_template_kwargs": {"reasoning_effort": cfg.gpt_oss_reasoning_effort}}
+        if cfg.gpt_oss_reasoning_effort is not None
+        else None
+    )
+
+    next_user_messages: list[Message | None] = await asyncio.gather(
+        *[
+            environment.next_user_message(output.outputs[0].text)
+            for environment, output in zip(environments, outputs, strict=True)
+        ]
+    )
+
+    assert all(message is None for message in next_user_messages), (
+        "Only single step environments are supported in the `single-step` branch of this repo. Switch to the main branch for multi-step environments."
+    )
+
+    rewards: list[float] = await asyncio.gather(
+        *[
+            environment.get_reward() for environment in environments
+        ]
+    )
+
+    extra_metrics: list[dict[str, float]] = await asyncio.gather(
+        *[
+            environment.extra_metrics() for environment in environments
+        ]
+    )
+
+    logs: list[Any] = await asyncio.gather(
+        *[
+            environment.logs() for environment in environments
+        ]
     )
 
     for output in outputs:
         print(output)
+
+    return [
+        Rollout(
+            completions=[
+                Completion(
+                    completion_text=output.outputs[0].text,
+                    prompt_token_ids=output.prompt_token_ids,
+                    completion_token_ids=output.outputs[0].token_ids,
+                    completion_logprobs=[
+                        logprobs[token].logprob
+                        for logprob, token in zip(
+                            output.outputs[0].logprobs,
+                            output.outputs[0].token_ids,
+                            strict=True,
+                        )
+                    ]
+                )
+            ],
+            messages=[prompt + [{"role": "assistant", "content": output.outputs[0].text}]],
+            reward=reward,
+            extra_metrics=extra_metric,
+            logs=log,
+        )
+        for prompt, output, reward, extra_metric, log in zip(
+            prompts, outputs, rewards, extra_metrics, logs, strict=True
+        )
+    ]
 
     exit()
     
