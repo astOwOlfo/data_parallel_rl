@@ -396,10 +396,11 @@ async def generate_rollouts(
         "Only single step environments are supported in the `single-step` branch of this repo. Switch to the main branch for multi-step environments."
     )
 
-    rewards: list[float] = await asyncio.gather(
+    rewards: list[float] = await asyncio_tqdm.gather(
         *[
             environment.get_reward() for environment in environments
-        ]
+        ],
+        desc="computing rewards",
     )
 
     extra_metrics: list[dict[str, float]] = await asyncio.gather(
@@ -432,7 +433,7 @@ async def generate_rollouts(
                     completion_token_ids=output.outputs[0].token_ids,
                     completion_logprobs=[
                         logprobs[token].logprob
-                        for logprob, token in zip(
+                        for logprobs, token in zip(
                             output.outputs[0].logprobs,
                             output.outputs[0].token_ids,
                             strict=True,
