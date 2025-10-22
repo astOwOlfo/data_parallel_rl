@@ -372,9 +372,6 @@ async def generate_rollouts_async(
     epoch: int,
     cfg: GRPOConfig,
 ) -> list[Rollout]:
-    if cfg.vllm_sleep and vllm_engine.is_sleeping():
-        vllm_engine.wake_up()
-
     grouped_environments: list[list[Environment]] = environment_maker.make_environments(
         epoch=epoch, n_groups=cfg.n_groups, group_size=cfg.group_size
     )
@@ -388,6 +385,9 @@ async def generate_rollouts_async(
             for environment in environments
         ]
     )
+
+    with PrintHowLongItTakens("Initializing vllm engine for inference"):
+        vllm_engine: LLM = make_vllm_engine(wold_size=world_size, cfg=cfg)
 
     outputs: list[RequestOutput] = vllm_engine.chat(
         messages=prompts,
@@ -430,10 +430,6 @@ async def generate_rollouts_async(
     )
 
     await environment_maker.cleanup(grouped_environments)
-
-    if cfg.vllm_sleep:
-        # TODO: figure out whether this actually frees all the memory allocated to vllm
-        vllm_engine.sleep(level=1)
 
     return [
         Rollout(
