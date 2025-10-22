@@ -385,9 +385,9 @@ async def generate_rollouts(
         else None
     )
 
-    next_user_messages: list[Message | None] = await asyncio.gather(
+    next_user_messages: list[list[Message] | None] = await asyncio.gather(
         *[
-            environment.next_user_message(output.outputs[0].text)
+            environment.next_user_messages(output.outputs[0].text)
             for environment, output in zip(environments, outputs, strict=True)
         ]
     )
