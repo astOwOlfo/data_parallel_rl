@@ -876,7 +876,7 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> LLM:
     return vllm_engine
 
 
-def save_full_weight_model(training_model, cfg: GRPOConfig) -> str:
+def save_full_weight_model(training_model, epoch: int, cfg: GRPOConfig) -> str:
     lora_adapter_path = os.path.abspath(
         os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
     )
@@ -1010,7 +1010,7 @@ async def grpo_train_process(
     for epoch in trange(cfg.epochs, desc="grpo training", disable=not main_process):
         if main_process:
             with PrintHowLongItTakes("Saving model to disk."):
-                model_path = save_full_weight_model(training_model, cfg=cfg)
+                model_path = save_full_weight_model(training_model, epoch=epoch, cfg=cfg)
             
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
                 rollouts: list[Rollout] = generate_rollouts_subprocess(
