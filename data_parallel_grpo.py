@@ -884,7 +884,7 @@ def update_inference_vllm_engine(
         gc.collect()
         torch.cuda.empty_cache()
         import subprocess
-        subporecss.run(["nvidia-smi"])
+        subprocess.run(["nvidia-smi"])
         lora_adapter_path = os.path.abspath(
             os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
         )
