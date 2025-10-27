@@ -30,14 +30,11 @@ class RewardType(Enum):
 
 
 def fetch_submission(full_submission: str) -> str:
-    if "final<|message|>" in full_submission:
-        submission = full_submission.split("final<|message|>")[-1].strip()
-        return submission
-    if "</think>" in full_submission:
-        submission = full_submission.split("</think>")[-1].strip()
-        return submission
-    else:
-        return ""
+    for tag in ["assistantfinal", "final<|message|>", "</think>"]:
+        if tag in full_submission:
+            return full_submission.split(tag)[-1].strip()
+    
+    return ""
 
 
 @dataclass(slots=True)
