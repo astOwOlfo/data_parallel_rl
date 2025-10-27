@@ -369,12 +369,13 @@ async def generate_rollouts(
         *[environment.initial_system_or_user_messages() for environment in environments]
     )
 
-    completions: list[Completion] = chat_completions(
-        world_size=world_size,
-        model_path=model_path,
-        prompts=prompts,
-        cfg=cfg,
-    )
+    with PrintHowLongItTakes("generating chat completions with vllm"):
+        completions: list[Completion] = chat_completions(
+            world_size=world_size,
+            model_path=model_path,
+            prompts=prompts,
+            cfg=cfg,
+        )
 
     next_user_messages: list[list[Message] | None] = await asyncio.gather(
         *[
