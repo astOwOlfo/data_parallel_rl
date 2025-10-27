@@ -750,9 +750,9 @@ def grpo_loss(
         assert losses.numel() == 1
         loss = losses.reshape(())
     elif cfg.unbias_completion_length:
-        assert cfg.vllm_sampling_params.max_tokens is not None
+        assert cfg.vllm_sampling_params.get("max_tokens") is not None
         # TODO: check if i should multiply by n_completions here
-        loss = losses.sum() / (n_completions * cfg.vllm_sampling_params.max_tokens)
+        loss = losses.sum() / (n_completions * cfg.vllm_sampling_params["max_tokens"])
     else:
         loss = losses.mean()
 
