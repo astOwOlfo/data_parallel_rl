@@ -699,7 +699,7 @@ def grpo_loss(
     cfg: GRPOConfig,
 ) -> tuple[Float[Tensor, ""], LossMetrics]:
     tokenizer = AutoTokenizer.from_pretrained("unsloth/gpt-oss-20b-bf16")
-    print([(x-y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
+    print([(x, y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
 
 
     if cfg.group_sequence_policy_optimization:
