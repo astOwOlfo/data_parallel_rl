@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.12.3"
 dependencies = [
-    "torch==2.8.0",
+    "torch==2.7.1",
     "transformers==4.57.1",
     "vllm==0.10.1",
     "flash-attn==2.8.2",
