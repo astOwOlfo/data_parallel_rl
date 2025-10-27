@@ -33,7 +33,7 @@ def fetch_submission(full_submission: str) -> str:
     for tag in ["assistantfinal", "final<|message|>", "</think>"]:
         if tag in full_submission:
             return full_submission.split(tag)[-1].strip()
-    
+
     return ""
 
 
