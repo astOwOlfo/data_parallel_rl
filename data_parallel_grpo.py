@@ -341,6 +341,8 @@ def chat_completions(
             json.dumps(vllm_kwargs),
             "--sampling-params",
             json.dumps(cfg.vllm_sampling_params),
+            "--chat-template-kwargs-json",
+            json.dumps({"reasoning_effort": cfg.gpt_oss_reasoning_effort}),
         ],
         check=True,
     )
@@ -406,7 +408,8 @@ async def generate_rollouts(
     return [
         Rollout(
             completions=[completion],
-            messages=prompt + [{"role": "assistant", "content": completion.completion_text}],
+            messages=prompt
+            + [{"role": "assistant", "content": completion.completion_text}],
             reward=reward,
             extra_metrics=extra_metric,
             logs=log,

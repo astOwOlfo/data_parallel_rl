@@ -10,6 +10,7 @@ def main() -> None:
     parser.add_argument("--model-name", type=str, required=True)
     parser.add_argument("--vllm-kwargs-json", type=str, required=True)
     parser.add_argument("--sampling-params-json", type=str, required=True)
+    parser.add_argument("--chat-template-kwargs-json", type=str, required=True)
     args = parser.parse_args()
 
     llm = LLM(args.model_name, **json.loads(args.vllm_kwargs_json))
@@ -18,7 +19,11 @@ def main() -> None:
     with open(args.prompt_json_filename) as f:
         prompts = json.load(f)
 
-    outputs = llm.chat(prompts, sampling_params=sampling_params)
+    outputs = llm.chat(
+        prompts,
+        sampling_params=sampling_params,
+        chat_template_kwargs=json.loads(args.chat_template_kwargs_json)
+    )
 
     output_dicts = [
         {
