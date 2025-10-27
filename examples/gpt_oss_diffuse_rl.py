@@ -1,3 +1,4 @@
+import openai
 from openai import AsyncOpenAI
 from vllm import SamplingParams
 from datasets import load_dataset
@@ -43,8 +44,11 @@ class DiffuseRLEnvironment(Environment):
     true_answer: str
     incorrect_answer: str
     reward_type: RewardType
+    grader_timeout_seconds: int
     llm_message: str | None = None
-    failed_parsing: bool = False
+    thinking_parsing_failed: bool = False
+    grader_parsing_failed: bool = False
+    grader_timed_out: bool = False
 
     async def initial_system_or_user_messages(self) -> list[Message]:
         return [
@@ -67,7 +71,7 @@ class DiffuseRLEnvironment(Environment):
 
         answer_without_reasoning = fetch_submission(self.llm_message)
         if answer_without_reasoning is None:
-            self.failed_parsing = True
+            self.thinking_parsing_failed = True
             return 0.0
 
         if self.reward_type == RewardType.GROUND_TRUTH:
@@ -100,8 +104,14 @@ class DiffuseRLEnvironment(Environment):
                 response = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": reward_model_prompt}],
+                    timeout=self.grader_timeout_seconds,
                 )
             except Exception as e:
+                if isinstance(e, (TimeoutError, openai.APITimeoutError)):
+                    print("OpenAI call timed out.")
+                    self.grader_timed_out = True
+                    return 0.0
+
                 delay = 2**i_retry
                 print(
                     f"OpenAI call failed on retry {i_retry}. Waiting for {delay} seconds and trying again. The exception is: {e}"
@@ -137,6 +147,7 @@ class DiffuseRLEnvironment(Environment):
                 value = ""
 
         if value is None or value == "":
+            self.grader_parsing_failed = True
             return 0.0
         else:
             value = float(value)
@@ -150,12 +161,19 @@ class DiffuseRLEnvironment(Environment):
         return float(value) / 10.0
 
     async def extra_metrics(self) -> dict[str, float]:
-        return {"failed_parsing": float(self.failed_parsing)}
+        return {
+            "thinking_parsing_failed": float(self.thinking_parsing_failed),
+            "grader_parsing_failed": float(self.grader_parsing_failed),
+            "grader_timed_out": float(self.grader_timed_out),
+        }
 
 
 class DiffuseRLEnvironmentMaker(EnvironmentMaker):
-    def __init__(self, reward_type: RewardType) -> None:
+    def __init__(
+        self, reward_type: RewardType, grader_timeout_seconds: int = 120
+    ) -> None:
         self.reward_type = reward_type
+        self.grader_timeout_seconds = grader_timeout_seconds
 
         self.dataset = list(pd.read_csv("data/olympiads.csv").to_dict("records"))
         Random(42).shuffle(self.dataset)
@@ -173,6 +191,7 @@ class DiffuseRLEnvironmentMaker(EnvironmentMaker):
                         true_answer=datapoint["target"],
                         incorrect_answer=datapoint["stored_incorrect_answer"],
                         reward_type=self.reward_type,
+                        grader_timeout_seconds=self.grader_timeout_seconds,
                     )
                     for _ in range(group_size)
                 ]
