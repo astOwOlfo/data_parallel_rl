@@ -199,6 +199,7 @@ def main():
             optimizer_kwargs={"lr": 5e-5},
             lora_rank=128,
             lora_kwargs={"lora_alpha": 256, "target_modules": "all-linear"},
+            gpt_oss_reasoning_effort="low",
         ),
     )
 
