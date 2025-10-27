@@ -181,7 +181,7 @@ def main():
         cfg=GRPOConfig(
             model="unsloth/gpt-oss-20b-bf16",
             epochs=32,
-            n_groups=64,
+            n_groups=256,
             group_size=8,
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
