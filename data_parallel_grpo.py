@@ -810,7 +810,7 @@ def make_training_model(rank, cfg: GRPOConfig) -> DistributedDataParallel:
 
 def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer:
     return cfg.optimizer_class(
-        params=[param for param in model.module.parameters() if param.requires_grad],
+        params=[param for param in model.module.parameters() if param.requires_grad][:1],
         **cfg.optimizer_kwargs,
     )
 
