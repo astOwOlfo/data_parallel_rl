@@ -5,9 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.12.3"
 dependencies = [
-    "torch==2.7.1",
+    "torch==2.8.0",
     "transformers==4.57.1",
-    "vllm==0.10.1",
+    "vllm==0.11.0",
     "flash-attn==2.8.2",
     "jaxtyping==0.3.2",
     "more-itertools==10.7.0",
@@ -19,3 +19,6 @@ dependencies = [
 
 # [tool.uv.sources]
 # flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2+cu128torch2.7-cp312-cp312-linux_x86_64.whl" }
+
+[tool.uv.sources]
+flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2+cu128torch2.8-cp312-cp312-linux_x86_64.whl" }
