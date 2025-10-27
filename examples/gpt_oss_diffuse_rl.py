@@ -190,6 +190,7 @@ def main():
             epochs=32,
             n_groups=256,
             group_size=8,
+            train_batch_size=512,
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
             normalize_advantages=False,
