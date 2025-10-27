@@ -19,11 +19,12 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.optim import Optimizer, AdamW
 import wandb
 from datetime import datetime
+import subprocess
 from time import perf_counter
 import atexit
 from pathlib import Path
 from shutil import rmtree
-from os import mkdir
+from os import mkdir, makedirs
 import os
 import sys
 from uuid import uuid4
@@ -110,9 +111,10 @@ class GRPOConfig:
     )
     """Kwargs to give to `vllm.AsyncLLMEngine.from_engine_args(vllm.AsyncEngineArgs(**kwargs))` when initializing the inference vLLM engine. `gpu_memory_utilization` (i.e. the fraction of each GPU's memory that the vLLM engine consumes) should be small enough for it to be possible to train one copy of the model on each GPU with the remaining memory if vllm sleep is disabled and small enough to hold one copy of the the weights of the model on each GPU if vllm sleep is enabled. Will add `tensor_parallel_size` equal to the number of available GPUs if not provided. It is recommended to include `"enable_prefix_caching": True` when doing multistep."""
 
-    vllm_sampling_params: SamplingParams = SamplingParams(
-        temperature=1.0, max_tokens=4096
+    vllm_sampling_params: dict[str, Any] = field(
+        default_factory=lambda: {"temperature": 1.0, "max_tokens": 4096}
     )
+
     """Sampling parameters for the rollout. The `logprobs` field will be overwritten with 1."""
 
     huggingface_model_kwargs: dict[str, Any] = field(
@@ -270,7 +272,6 @@ class Completion:
     cumulative_completion_logprob: float
 
 
-
 @dataclass(frozen=True, slots=True)
 class Rollout:
     completions: list[Completion]
@@ -313,62 +314,46 @@ def get_rollout_metrics(rollout: Rollout) -> RolloutMetrics:
     )
 
 
-async def generate_single_rollout(
-    environment: Environment,
-    vllm_engine: LLM,
-    lora_request: LoRARequest | None,
-    cfg: GRPOConfig,
-) -> Rollout:
-    # TODO: do something when the rollout runs out of context
+def chat_completions(
+    world_size: int, model_path: str, prompts: list[list[Message]], cfg: GRPOConfig
+) -> list[Completion]:
+    makedirs("temp", exist_ok=True)
 
-    messages: list[Message] = await environment.initial_system_or_user_messages()
-    completions: list[Completion] = []
+    with open("temp/prompts.json", "w") as f:
+        json.dump(prompts, f)
 
-    while True:
-        completion = await chat_completion(
-            vllm_engine=vllm_engine,
-            lora_request=lora_request,
-            sampling_params=cfg.vllm_sampling_params,
-            messages=messages,
-        )
+    vllm_kwargs = cfg.vllm_kwargs
+    if "tensor_parallel_size" not in vllm_kwargs:
+        vllm_kwargs["tensor_parallel_size"] = world_size
 
-        completions.append(completion)
-        messages.append({"role": "assistant", "content": completion.completion_text})
-
-        new_user_messages: list[Message] | None = await environment.next_user_messages(
-            completion.completion_text
-        )
-
-        if new_user_messages is None:
-            break
-
-        messages += new_user_messages
-
-    return Rollout(
-        completions=completions,
-        messages=messages,
-        reward=await environment.get_reward(),
-        extra_metrics=await environment.extra_metrics(),
-        logs=await environment.logs(),
+    subprocess.run(
+        [
+            "uv",
+            "run",
+            "generate_chat_completions.py",
+            "--prompt-json-filename",
+            "temp/prompts.json",
+            "--output-json-filename",
+            "temp/outputs.json",
+            "--model-name",
+            model_path,
+            "--vllm-kwargs-json",
+            json.dumps(vllm_kwargs),
+            "--sampling-params",
+            json.dumps(cfg.vllm_sampling_params),
+        ],
+        check=True,
     )
 
+    with open("temp/outputs.json") as f:
+        dict_completions = json.load(f)
 
-def generate_rollouts_subprocess(*args, **kwargs) -> list[Rollout]:
-    queue = multiprocessing.Queue()
-    process = multiprocessing.Process(target=generate_rollouts, args=(queue,) + args, kwargs=kwargs)
-    process.start()
-    result = queue.get()
-    process.join()
-    return result
+    return [Completion(**c) for c in dict_completions]
 
 
-def generate_rollouts(queue, *args, **kwargs) -> None:
-    result = asyncio.run(generate_rollouts_async(*args, **kwargs))
-    queue.put(result)
-
-
-async def generate_rollouts_async(
+async def generate_rollouts(
     world_size: int,
+    model_path: str,
     environment_maker: EnvironmentMaker,
     epoch: int,
     cfg: GRPOConfig,
@@ -381,29 +366,20 @@ async def generate_rollouts_async(
     environments: list[Environment] = list(chain.from_iterable(grouped_environments))
 
     prompts: list[list[Message]] = await asyncio.gather(
-        *[
-            environment.initial_system_or_user_messages()
-            for environment in environments
-        ]
+        *[environment.initial_system_or_user_messages() for environment in environments]
     )
 
-    with PrintHowLongItTakes("Initializing vllm engine for inference"):
-        vllm_engine: LLM = make_vllm_engine(world_size=world_size, cfg=cfg)
-
-    outputs: list[RequestOutput] = vllm_engine.chat(
-        messages=prompts,
-        sampling_params=cfg.vllm_sampling_params,
-        lora_request=lora_request,
-        use_tqdm=True,
-        chat_template_kwargs={"reasoning_effort": cfg.gpt_oss_reasoning_effort}
-        if cfg.gpt_oss_reasoning_effort is not None
-        else None
+    completions: list[Completion] = chat_completions(
+        world_size=world_size,
+        model_path=model_path,
+        prompts=prompts,
+        cfg=cfg,
     )
 
     next_user_messages: list[list[Message] | None] = await asyncio.gather(
         *[
-            environment.next_user_messages(output.outputs[0].text)
-            for environment, output in zip(environments, outputs, strict=True)
+            environment.next_user_messages(completion.completion_text)
+            for environment, completion in zip(environments, completions, strict=True)
         ]
     )
 
@@ -412,51 +388,30 @@ async def generate_rollouts_async(
     )
 
     rewards: list[float] = await asyncio_tqdm.gather(
-        *[
-            environment.get_reward() for environment in environments
-        ],
+        *[environment.get_reward() for environment in environments],
         desc="computing rewards",
     )
 
     extra_metrics: list[dict[str, float]] = await asyncio.gather(
-        *[
-            environment.extra_metrics() for environment in environments
-        ]
+        *[environment.extra_metrics() for environment in environments]
     )
 
     logs: list[Any] = await asyncio.gather(
-        *[
-            environment.logs() for environment in environments
-        ]
+        *[environment.logs() for environment in environments]
     )
 
     await environment_maker.cleanup(grouped_environments)
 
     return [
         Rollout(
-            completions=[
-                Completion(
-                    completion_text=output.outputs[0].text,
-                    prompt_token_ids=output.prompt_token_ids,
-                    completion_token_ids=output.outputs[0].token_ids,
-                    completion_logprobs=[
-                        logprobs[token].logprob
-                        for logprobs, token in zip(
-                            output.outputs[0].logprobs,
-                            output.outputs[0].token_ids,
-                            strict=True,
-                        )
-                    ],
-                    cumulative_completion_logprob=output.outputs[0].cumulative_logprob,
-                )
-            ],
-            messages=prompt + [{"role": "assistant", "content": output.outputs[0].text}],
+            completions=[completion],
+            messages=prompt + [{"role": "assistant", "content": completion.completion_text}],
             reward=reward,
             extra_metrics=extra_metric,
             logs=log,
         )
-        for prompt, output, reward, extra_metric, log in zip(
-            prompts, outputs, rewards, extra_metrics, logs, strict=True
+        for prompt, completion, reward, extra_metric, log in zip(
+            prompts, completions, rewards, extra_metrics, logs, strict=True
         )
     ]
 
@@ -595,7 +550,7 @@ def train_with_gradient_descent(
             )
             if all(advantage == 0.0 for advantage in advantages_on_all_processes):
                 continue
-            
+
             # TODO: don't do this computation if the advantage is zero
             # note: torch will complain if there have been zero backward passes on one gpu
 
@@ -697,7 +652,9 @@ def compute_loss(
 
     # question: indexing by the mask before passing the tokens to the loss the cleanest way to do masking?
     return grpo_loss(
-        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(torch.float32),
+        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(
+            torch.float32
+        ),
         old_huggingface_logprobs=torch.tensor(
             [
                 logprob
@@ -749,7 +706,9 @@ def grpo_loss(
         old_huggingface_logprobs = (
             old_huggingface_logprobs.sum(-1, keepdim=True) / divide_by
         )
-        old_vllm_logprobs = old_vllm_cumulative_completion_logprob.unsqueeze(-1) / divide_by
+        old_vllm_logprobs = (
+            old_vllm_cumulative_completion_logprob.unsqueeze(-1) / divide_by
+        )
 
     probability_ratios: Float[Tensor, " position"] = (
         logprobs - old_huggingface_logprobs
@@ -848,29 +807,6 @@ def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer
         params=[param for param in model.module.parameters() if param.requires_grad],
         **cfg.optimizer_kwargs,
     )
-
-
-def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> LLM:
-    kwargs = cfg.vllm_kwargs
-
-    if "tensor_parallel_size" not in kwargs:
-        kwargs["tensor_parallel_size"] = world_size
-    if cfg.vllm_sleep and "enable_sleep_mode" not in kwargs:
-        kwargs["enable_sleep_mode"] = True
-
-    vllm_engine = LLM(
-        model=cfg.model,
-        enable_lora=cfg.lora and not cfg.restart_vllm_with_merged_lora,
-        max_lora_rank=cfg.lora_rank,
-        **kwargs,
-    )
-
-    @atexit.register
-    def cleanup_vllm() -> None:
-        print("SHUTTING DOWN VLLM")
-        vllm_engine.shutdown()  # type: ignore
-
-    return vllm_engine
 
 
 def save_full_weight_model(training_model, epoch: int, cfg: GRPOConfig) -> str:
@@ -1007,14 +943,17 @@ async def grpo_train_process(
     for epoch in trange(cfg.epochs, desc="grpo training", disable=not main_process):
         if main_process:
             with PrintHowLongItTakes("Saving model to disk."):
-                model_path = save_full_weight_model(training_model, epoch=epoch, cfg=cfg)
-            
+                model_path = save_full_weight_model(
+                    training_model, epoch=epoch, cfg=cfg
+                )
+
             with PrintHowLongItTakes("sampling rollouts with vLLM"):
-                rollouts: list[Rollout] = generate_rollouts_subprocess(
+                rollouts: list[Rollout] = await generate_rollouts(
                     world_size=world_size,
+                    model_path=model_path,
                     environment_maker=environment_maker,
                     epoch=epoch,
-                    cfg=replace(cfg, model=model_path),
+                    cfg=cfg,
                 )
 
             rmtree(model_path)
