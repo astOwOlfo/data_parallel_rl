@@ -345,7 +345,7 @@ def chat_completions(
             json.dumps({"reasoning_effort": cfg.gpt_oss_reasoning_effort}),
         ],
         check=True,
-        env=os.environ | {"TORCH_CUDA_ARCH_LIST": "9.0"}
+        env=os.environ | {"TORCH_CUDA_ARCH_LIST": "9.0"},
     )
 
     with open("temp/outputs.json") as f:
@@ -654,7 +654,7 @@ def compute_loss(
 
     # question: indexing by the mask before passing the tokens to the loss the cleanest way to do masking?
     return grpo_loss(
-        toks=[t for t, m in zip(datapoint.token_ids, datapoint.train_mask, strict=True) if m],
+        # DEBUG: toks=[t for t, m in zip(datapoint.token_ids, datapoint.train_mask, strict=True) if m],
         logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(
             torch.float32
         ),
@@ -690,7 +690,7 @@ def compute_loss(
 
 
 def grpo_loss(
-    toks,
+    # DEBUG: toks,
     logprobs: Float[Tensor, " position"],
     old_huggingface_logprobs: Float[Tensor, " position"],
     old_vllm_logprobs: Float[Tensor, " position"],
@@ -699,8 +699,8 @@ def grpo_loss(
     n_completions: int,
     cfg: GRPOConfig,
 ) -> tuple[Float[Tensor, ""], LossMetrics]:
-    tokenizer = AutoTokenizer.from_pretrained("unsloth/gpt-oss-20b-bf16")
-    print([(x, y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
+    # DEBUG: tokenizer = AutoTokenizer.from_pretrained("unsloth/gpt-oss-20b-bf16")
+    # DEBUG: print([(x, y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
 
     if cfg.group_sequence_policy_optimization:
         if cfg.unbias_completion_length:
@@ -713,9 +713,7 @@ def grpo_loss(
         old_huggingface_logprobs = (
             old_huggingface_logprobs.sum(-1, keepdim=True) / divide_by
         )
-        old_vllm_logprobs = (
-            old_vllm_logprobs.sum(-1, keepdim=True) / divide_by
-        )
+        old_vllm_logprobs = old_vllm_logprobs.sum(-1, keepdim=True) / divide_by
 
     probability_ratios: Float[Tensor, " position"] = (
         logprobs - old_huggingface_logprobs
@@ -811,7 +809,7 @@ def make_training_model(rank, cfg: GRPOConfig) -> DistributedDataParallel:
 
 def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer:
     return cfg.optimizer_class(
-        params=[param for param in model.module.parameters() if param.requires_grad][:1],
+        params=[param for param in model.module.parameters() if param.requires_grad],
         **cfg.optimizer_kwargs,
     )
 
