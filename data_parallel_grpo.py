@@ -653,7 +653,7 @@ def compute_loss(
 
     # question: indexing by the mask before passing the tokens to the loss the cleanest way to do masking?
     return grpo_loss(
-        toks=[t for t, m in zip(datapoint.token_ids, datapoint.train_mask, strict=True) if m],
+        # toks=[t for t, m in zip(datapoint.token_ids, datapoint.train_mask, strict=True) if m],
         logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(
             torch.float32
         ),
@@ -689,7 +689,7 @@ def compute_loss(
 
 
 def grpo_loss(
-    toks,
+    # toks,
     logprobs: Float[Tensor, " position"],
     old_huggingface_logprobs: Float[Tensor, " position"],
     old_vllm_logprobs: Float[Tensor, " position"],
@@ -698,9 +698,8 @@ def grpo_loss(
     n_completions: int,
     cfg: GRPOConfig,
 ) -> tuple[Float[Tensor, ""], LossMetrics]:
-    tokenizer = AutoTokenizer.from_pretrained("unsloth/gpt-oss-20b-bf16")
-    print([(x, y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
-
+    # tokenizer = AutoTokenizer.from_pretrained("unsloth/gpt-oss-20b-bf16")
+    # print([(x, y, z) for x, y, z in zip(old_huggingface_logprobs.tolist(), old_vllm_logprobs.tolist(), tokenizer.batch_decode(toks), strict=True)])
 
     if cfg.group_sequence_policy_optimization:
         if cfg.unbias_completion_length:
