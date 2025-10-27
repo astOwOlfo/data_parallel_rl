@@ -1069,9 +1069,7 @@ def grpo_train(
 ) -> None:
     cfg = make_save_directories(cfg)
 
-    vllm_sampling_params = deepcopy(cfg.vllm_sampling_params)
-    vllm_sampling_params.logprobs = 1
-    cfg = replace(cfg, vllm_sampling_params=vllm_sampling_params)
+    cfg.vllm_sampling_params["logprobs"] = 1
 
     if world_size is None:
         world_size = torch.cuda.device_count()
