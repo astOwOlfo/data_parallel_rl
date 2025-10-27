@@ -7,6 +7,7 @@ import pandas as pd
 import re
 from random import Random
 from enum import Enum
+import asyncio
 from itertools import count
 from dataclasses import dataclass
 
@@ -102,13 +103,15 @@ class DiffuseRLEnvironment(Environment):
 
         for i_retry in count():
             try:
-                response = await client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": reward_model_prompt}],
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": reward_model_prompt}],
+                    ),
                     timeout=self.grader_timeout_seconds,
                 )
             except Exception as e:
-                if isinstance(e, (TimeoutError, openai.APITimeoutError)):
+                if isinstance(e, asyncio.TimeoutError):
                     print("OpenAI call timed out.")
                     self.grader_timed_out = True
                     return 0.0
