@@ -555,9 +555,6 @@ def train_with_gradient_descent(
             # if all(advantage == 0.0 for advantage in advantages_on_all_processes):
             #     continue
 
-            # TODO: don't do this computation if the advantage is zero
-            # note: torch will complain if there have been zero backward passes on one gpu
-
             # TODO: check if this works if the number of train datapoints is different on different gpus
             loss, loss_metrics = compute_loss(
                 rank=rank,
