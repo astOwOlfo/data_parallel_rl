@@ -794,7 +794,7 @@ def make_training_model(rank, cfg: GRPOConfig) -> DistributedDataParallel:
     if cfg.gradient_checkpointing:
         model.gradient_checkpointing_enable()
 
-    # model = get_peft_model(model, LoraConfig(r=cfg.lora_rank, **cfg.lora_kwargs))
+    model = get_peft_model(model, LoraConfig(r=cfg.lora_rank, **cfg.lora_kwargs))
 
     assert cfg.lora, "Full parameter fine-tuning is not supported yet."
     if cfg.compile_huggingface_model:
@@ -816,11 +816,11 @@ def make_optimizer(model: DistributedDataParallel, cfg: GRPOConfig) -> Optimizer
 
 
 def save_full_weight_model(training_model, epoch: int, cfg: GRPOConfig) -> str:
-    full_weight_path = os.path.abspath(os.path.join(cfg.save_path, "full_weights"))
-    training_model.module.save_pretrained(full_weight_path)
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model)
-    tokenizer.save_pretrained(full_weight_path)
-    return full_weight_path
+    # full_weight_path = os.path.abspath(os.path.join(cfg.save_path, "full_weights"))
+    # training_model.module.save_pretrained(full_weight_path)
+    # tokenizer = AutoTokenizer.from_pretrained(cfg.model)
+    # tokenizer.save_pretrained(full_weight_path)
+    # return full_weight_path
 
     lora_adapter_path = os.path.abspath(
         os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
