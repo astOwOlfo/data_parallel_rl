@@ -228,8 +228,8 @@ def main():
             vllm_kwargs={
                 "gpu_memory_utilization": 0.4,
                 "max_model_len": 2048,
-                "enforce_eager": True,
-                "max_num_batched_tokens": 65536,
+                # "enforce_eager": True,
+                # "max_num_batched_tokens": 65536,
             },
             vllm_sampling_params={"max_tokens": 1500, "temperature": 1.0},
             restart_vllm_with_merged_lora=True,
