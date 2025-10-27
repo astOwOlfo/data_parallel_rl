@@ -205,8 +205,7 @@ def main():
             reward_type=RewardType.GROUND_TRUTH
         ),
         cfg=GRPOConfig(
-            # model="unsloth/gpt-oss-20b-bf16",
-            model="Qwen/Qwen3-4B",
+            model="unsloth/gpt-oss-20b-bf16",
             epochs=32,
             n_groups=8,
             group_size=8,
