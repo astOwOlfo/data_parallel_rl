@@ -29,12 +29,12 @@ class RewardType(Enum):
     TRUSTED_MONITOR = "trusted_monitor"  # dense
 
 
-def fetch_submission(full_submission: str) -> str:
+def fetch_submission(full_submission: str) -> str | None:
     for tag in ["assistantfinal", "final<|message|>", "</think>"]:
         if tag in full_submission:
             return full_submission.split(tag)[-1].strip()
 
-    return ""
+    return None
 
 
 @dataclass(slots=True)
@@ -44,12 +44,15 @@ class DiffuseRLEnvironment(Environment):
     incorrect_answer: str
     reward_type: RewardType
     llm_message: str | None = None
+    failed_parsing: bool = False
 
     async def initial_system_or_user_messages(self) -> list[Message]:
         return [
             {
                 "role": "user",
-                "content": AQUARAT_TEMPLATE_STYLIZED_RED_TEAM.format(incorrect_answer=self.incorrect_answer),
+                "content": AQUARAT_TEMPLATE_STYLIZED_RED_TEAM.format(
+                    incorrect_answer=self.incorrect_answer
+                ),
             }
         ]
 
@@ -63,6 +66,9 @@ class DiffuseRLEnvironment(Environment):
         assert self.llm_message is not None
 
         answer_without_reasoning = fetch_submission(self.llm_message)
+        if answer_without_reasoning is None:
+            self.failed_parsing = True
+            return 0.0
 
         if self.reward_type == RewardType.GROUND_TRUTH:
             MONITOR_TEMPLATE = DEFAULT_GT_TEMPLATE  # sparse (ground truth)
@@ -143,6 +149,9 @@ class DiffuseRLEnvironment(Environment):
 
         return float(value) / 10.0
 
+    async def extra_metrics(self) -> dict[str, float]:
+        return {"failed_parsing": float(self.failed_parsing)}
+
 
 class DiffuseRLEnvironmentMaker(EnvironmentMaker):
     def __init__(self, reward_type: RewardType) -> None:
@@ -171,10 +180,11 @@ class DiffuseRLEnvironmentMaker(EnvironmentMaker):
         return environments
 
 
-
 def main():
     grpo_train(
-        environment_maker=DiffuseRLEnvironmentMaker(reward_type=RewardType.GROUND_TRUTH),
+        environment_maker=DiffuseRLEnvironmentMaker(
+            reward_type=RewardType.GROUND_TRUTH
+        ),
         cfg=GRPOConfig(
             model="unsloth/gpt-oss-20b-bf16",
             epochs=32,
