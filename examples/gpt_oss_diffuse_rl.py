@@ -222,7 +222,7 @@ def main():
             vllm_sleep=True,
             compile_huggingface_model=False,
             huggingface_model_kwargs={"attn_implementation": "eager", "dtype": torch.bfloat16},
-            vllm_kwargs={"gpu_memory_utilization": 0.2, "max_model_len": 2048},
+            vllm_kwargs={"gpu_memory_utilization": 0.4, "max_model_len": 2048},
             vllm_sampling_params={"max_tokens": 1500, "temperature": 1.0},
             restart_vllm_with_merged_lora=True,
             optimizer_kwargs={"lr": 5e-5},
