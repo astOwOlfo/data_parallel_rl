@@ -17,5 +17,5 @@ dependencies = [
     "flashinfer-python==0.2.14.post1", # this line is important because installing flashinfer speeds up vllm significantly
 ]
 
-[tool.uv.sources]
-flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2+cu128torch2.7-cp312-cp312-linux_x86_64.whl" }
+# [tool.uv.sources]
+# flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2+cu128torch2.7-cp312-cp312-linux_x86_64.whl" }
