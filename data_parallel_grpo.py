@@ -345,6 +345,7 @@ def chat_completions(
             json.dumps({"reasoning_effort": cfg.gpt_oss_reasoning_effort}),
         ],
         check=True,
+        env={"TORCH_CUDA_ARCH_LIST": "9.0"}
     )
 
     with open("temp/outputs.json") as f:
