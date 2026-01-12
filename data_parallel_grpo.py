@@ -278,7 +278,7 @@ async def chat_completion(
 
     assert sampling_params.logprobs == 1
 
-    model_config = await vllm_engine.get_model_config()
+    model_config = vllm_engine.model_config
     tokenizer = await vllm_engine.get_tokenizer()
 
     resolved_content_format = resolve_chat_template_content_format(
