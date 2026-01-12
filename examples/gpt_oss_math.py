@@ -95,7 +95,7 @@ def main():
             use_wandb=True,
             vllm_sleep=True,
             compile_huggingface_model=True,
-            vllm_kwargs={"gpu_memory_utilization": 0.4, "max_model_len": 12288},
+            vllm_kwargs={"gpu_memory_utilization": 0.3, "max_model_len": 12288},
             vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
             optimizer_kwargs={"lr": 5e-5},
             lora_rank=64,
