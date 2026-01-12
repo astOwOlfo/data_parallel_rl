@@ -81,9 +81,9 @@ def main():
     grpo_train(
         environment_maker=MathEnvironmentMaker(),
         cfg=GRPOConfig(
-            model="unsloth/gpt-oss-20b-bf16",
+            model="openai/gpt-oss-20b",
             epochs=32,
-            n_groups=256,
+            n_groups=64,
             group_size=8,
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
