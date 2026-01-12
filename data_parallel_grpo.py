@@ -289,13 +289,13 @@ async def chat_completion(
         model_config=model_config,
     )
 
-    conversation, multimodal_data = parse_chat_messages(
+    conversation, multimodal_data, multimodal_uuid_data = parse_chat_messages(
         messages,  # type: ignore
         model_config,
         content_format=resolved_content_format,
     )
 
-    assert multimodal_data is None, (
+    assert multimodal_data is None and multimodal_uuid_data is None, (
         "If this assert is triggered when you are not using a multimodal model: this is really weird and should not happen. If this assert is happening when you are using a multimodal model: sorry, I didn't test this code on multimodal models. If this assert is triggered, you have to figure out how to add support for multimodal models. All you have to do might be just removing this assert. But removing this assert might make things fail silently. I don't know, I didn't take the time to understand how multimodal models work with vLLM."
     )
 
@@ -334,7 +334,7 @@ async def chat_completion(
                 strict=True,
             )
         ],
-        cumulative_completion_logprob=final_output.outputs[0].cumulative_logprob
+        cumulative_completion_logprob=final_output.outputs[0].cumulative_logprob,
     )
 
 
@@ -687,7 +687,9 @@ def compute_loss(
 
     # question: indexing by the mask before passing the tokens to the loss the cleanest way to do masking?
     return grpo_loss(
-        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(torch.float32),
+        logprobs=logprobs[torch.tensor(datapoint.train_mask[1:]).cuda(rank)].to(
+            torch.float32
+        ),
         old_huggingface_logprobs=torch.tensor(
             [
                 logprob
@@ -739,7 +741,9 @@ def grpo_loss(
         old_huggingface_logprobs = (
             old_huggingface_logprobs.sum(-1, keepdim=True) / divide_by
         )
-        old_vllm_logprobs = old_vllm_cumulative_completion_logprob.unsqueeze(-1) / divide_by
+        old_vllm_logprobs = (
+            old_vllm_cumulative_completion_logprob.unsqueeze(-1) / divide_by
+        )
 
     probability_ratios: Float[Tensor, " position"] = (
         logprobs - old_huggingface_logprobs
