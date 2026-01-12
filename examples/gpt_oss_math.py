@@ -83,7 +83,7 @@ def main():
         cfg=GRPOConfig(
             model="openai/gpt-oss-20b",
             epochs=32,
-            n_groups=64,
+            n_groups=32,
             group_size=8,
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
@@ -95,7 +95,7 @@ def main():
             use_wandb=True,
             vllm_sleep=True,
             compile_huggingface_model=True,
-            vllm_kwargs={"gpu_memory_utilization": 0.3, "max_model_len": 12288},
+            vllm_kwargs={"gpu_memory_utilization": 0.7, "max_model_len": 12288},
             vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
             optimizer_kwargs={"lr": 4e-5},
             lora_rank=64,
