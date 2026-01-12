@@ -866,19 +866,14 @@ def make_vllm_engine(world_size: int, cfg: GRPOConfig) -> AsyncLLM | AsyncLLMEng
     return vllm_engine
 
 
-def update_inference_vllm_engine(
-    world_size: int,
-    inference_vllm_engine: AsyncLLM | AsyncLLMEngine,
-    training_model: DistributedDataParallel,
-    epoch: int,
-    cfg: GRPOConfig,
+def update_inference_vllm_lora_request(
+    training_model: DistributedDataParallel, epoch: int, cfg: GRPOConfig
 ) -> tuple[AsyncLLM | AsyncLLMEngine, LoRARequest | None]:
     path = os.path.join(cfg.save_path, "checkpoints", f"epoch-{epoch}")
     training_model.module.save_pretrained(path)
-    new_vllm_lora_request = LoRARequest(
+    return LoRARequest(
         lora_name=f"epoch_{epoch}", lora_int_id=epoch + 1, lora_local_path=path
     )
-    return inference_vllm_engine, new_vllm_lora_request
 
 
 def save_rollouts(rollouts: list[Rollout], epoch: int, cfg: GRPOConfig) -> None:
@@ -1084,12 +1079,8 @@ async def grpo_train_process(
             with PrintHowLongItTakes(
                 "copying lora adapter from the training huggingface transformer to the inference vllm engine"
             ):
-                inference_vllm_engine, vllm_lora_request = update_inference_vllm_engine(
-                    world_size=world_size,
-                    inference_vllm_engine=inference_vllm_engine,  # type: ignore
-                    training_model=training_model,
-                    epoch=epoch,
-                    cfg=cfg,
+                vllm_lora_request = update_inference_vllm_lora_request(
+                    training_model=training_model, epoch=epoch, cfg=cfg
                 )
 
         dist.barrier()
