@@ -88,7 +88,7 @@ def main():
             clip_epsilon_low=3e-4,
             clip_epsilon_high=4e-4,
             normalize_advantages=False,
-            unbias_advantages=False,
+            unbias_advantages=True,
             unbias_completion_length=False,
             group_sequence_policy_optimization=True,
             truncated_importance_sampling=True,
@@ -97,9 +97,9 @@ def main():
             compile_huggingface_model=True,
             vllm_kwargs={"gpu_memory_utilization": 0.3, "max_model_len": 12288},
             vllm_sampling_params=SamplingParams(max_tokens=8192, temperature=1.0),
-            optimizer_kwargs={"lr": 5e-5},
+            optimizer_kwargs={"lr": 4e-5},
             lora_rank=64,
-            lora_kwargs={"lora_alpha": 32, "target_modules": "all-linear"},
+            lora_kwargs={"lora_alpha": 128, "target_modules": "all-linear"},
         ),
     )
 
