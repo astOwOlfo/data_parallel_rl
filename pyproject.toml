@@ -5,17 +5,17 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = "==3.12.3"
 dependencies = [
-    "torch==2.7.1",
-    "transformers==4.55.2",
-    "vllm==0.10.1",
-    "flash-attn==2.8.2",
-    "jaxtyping==0.3.2",
+    "torch==2.9.1",
+    "transformers==4.57.3",
+    "vllm==0.13.0",
+    "flash-attn==2.8.3",
+    "jaxtyping==0.3.5",
     "more-itertools==10.7.0",
-    "peft==0.17.0",
-    "wandb==0.21.1",
+    "peft==0.18.1",
+    "wandb==0.23.1",
     "datasets==3.6.0",
-    "flashinfer-python==0.2.14.post1", # this line is important because installing flashinfer speeds up vllm significantly
+    "flashinfer-python==0.6.0rc2", # this line is important because installing flashinfer speeds up vllm significantly
 ]
 
 [tool.uv.sources]
-flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.2+cu128torch2.7-cp312-cp312-linux_x86_64.whl" }
+flash-attn = { url = "https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.3.14/flash_attn-2.8.3+cu128torch2.9-cp312-cp312-linux_x86_64.whl" }
