@@ -292,7 +292,6 @@ async def chat_completion(
     conversation, multimodal_data = parse_chat_messages(
         messages,  # type: ignore
         model_config,
-        tokenizer,
         content_format=resolved_content_format,
     )
 
