@@ -8,7 +8,7 @@ dependencies = [
     "torch==2.9.0",
     "transformers==4.57.3",
     "vllm==0.13.0",
-    "triton==3.5.1",
+    "triton==3.5.0",
     "flash-attn==2.8.3",
     "jaxtyping==0.3.5",
     "more-itertools==10.7.0",
