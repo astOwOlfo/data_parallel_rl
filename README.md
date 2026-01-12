@@ -2,8 +2,6 @@
 
 This repo contains a single-file script to run multi GPU (but not multi-node) RL on LLMs using data paralellism. Using data parallelism makes it much easier to train models, however, it requires that the whole weights of the model, as well as the activation cache, fit on a single GPU.
 
-Note that you can **not** use this pipeline with `gpt-oss-120b` because I have not figured out how to fine-tune it (with LoRA) without unquantizing the weights to bfloat16 (so you need `2 * 120b` bytes of memory to fine-tune it, not `0.5 * 120 billion` bytes), despite OpenAI explicitly advertising at the bottom of [this page](https://huggingface.co/openai/gpt-oss-120b) that this is possible.
-
 # Installation
 
 Recommended docker image: `volodimir1024/reward-hacking-cuda-128:v1.0`
@@ -42,14 +40,12 @@ cd data_parallel_rl
 uv run -m examples.math
 ```
 
-Train GPT OSS 20b on the `allenai/math_qa` math dataset. You will need to use H200s and not H100s for this:
+Train GPT OSS 20b on the `allenai/math_qa` math dataset:
 
 ```
 cd data_parallel_rl
 uv run -m examples.gpt_oss_math
 ```
-
-GPT OSS is is annoying because vLLM does not support LoRA with it. For now, it is jankier than other models. It also is slower by 1-2 minutes per epoch because it has to reinitialize the vLLM engine at each epoch.
 
 # Running on your own environments
 
